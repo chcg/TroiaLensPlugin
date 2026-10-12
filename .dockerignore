@@ -1,0 +1,12 @@
+﻿.git
+.gitignore
+node_modules
+dist
+build
+.venv
+__pycache__
+*.log
+bin
+obj
+.vs
+graphify-out

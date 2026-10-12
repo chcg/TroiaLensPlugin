@@ -1,0 +1,12 @@
+﻿# .gitignore otomatik uygulanir; bunlar ek dislamalardir
+node_modules/
+dist/
+build/
+.venv/
+vendor/
+bin/
+obj/
+web/
+.vs/
+*.min.js
+*.generated.*

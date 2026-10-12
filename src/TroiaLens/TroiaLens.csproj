@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>TroiaLens</AssemblyName>
+    <RootNamespace>TroiaLens</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <!-- Notepad++ x64 loads only x64 plugins -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.1.0</Version>
+    <Product>TroiaLens</Product>
+    <Description>Canias ERP Troia trace analizi için Notepad++ eklentisi</Description>
+    <!-- The IL round trip that adds native exports drops debug info anyway -->
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+  </ItemGroup>
+
+  <!--
+    Notepad++ calls plugins through native DLL exports. After compiling, the assembly is disassembled,
+    methods marked [DllExport] get an ".export" directive and it is reassembled for x64.
+    The stamp file keeps an already processed assembly from being processed twice.
+  -->
+  <Target Name="ExportNativeEntryPoints"
+          AfterTargets="CoreCompile"
+          BeforeTargets="CopyFilesToOutputDirectory"
+          Inputs="@(IntermediateAssembly)"
+          Outputs="@(IntermediateAssembly->'%(FullPath).exports')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\tools\DllExport.ps1&quot; -Assembly &quot;@(IntermediateAssembly->'%(FullPath)')&quot;" />
+    <Touch Files="@(IntermediateAssembly->'%(FullPath).exports')" AlwaysCreate="true" />
+  </Target>
+
+</Project>

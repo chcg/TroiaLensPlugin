@@ -10,3 +10,4 @@ web/
 .vs/
 *.min.js
 *.generated.*
+out/

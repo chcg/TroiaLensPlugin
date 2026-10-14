@@ -21,7 +21,7 @@ Görüntüler web reposundaki uydurma örnek trace ile alındı.
 | | |
 |---|---|
 | ![Satır detayı](docs/screenshots/npp-light-detail.png) | ![Koyu mod, çağrı ağacı](docs/screenshots/npp-dark-tree.png) |
-| Satır detayı; editör aynı satırda (Ln 45) | Koyu mod; çağrı ağacında seçilen satır editörde |
+| Satır ayrıntısı alt bölmede; editör aynı satırda (Ln 45), metot bloğu sarı | Koyu mod; seçilen satırın bloğu editörde, çift tıklanan kelime pembe |
 | ![Koyu mod, özet](docs/screenshots/npp-dark-overview.png) | |
 | Koyu mod, özet | |
 
@@ -31,6 +31,10 @@ Görüntüler web reposundaki uydurma örnek trace ile alındı.
 - Trace olmayan bir sekmeye geçince otomatik açılan panel gizlenir. Paneli menüden elle açtıysanız açık kalır.
   Bu durumda trace olmayan dosyada "Bu bir Troia trace dosyası değil" mesajı görünür.
 - Panelde bir satıra tıklayınca editör imleci o satıra gider. Detaydaki **Editörde göster** odağı da editöre verir.
+- Çağrı ağacında seçilen satırın metot bloğu editörde açık sarıyla, satırın kendisi koyu sarıyla işaretlenir.
+  Editörde bir kelimeye çift tıklayınca dosyadaki tüm geçişleri ayrı bir renkle işaretlenir.
+- Satır ayrıntısı varsayılan olarak alt bölmede açılır. Başlığındaki düğmeyle ya da menüden sağda kayan panele
+  geçilebilir; seçim kaydedilir.
 - Dosya kaydedilince yeniden analiz edilir. Notepad++ koyu modundaysa panel de koyu açılır.
 - Bir trace sekmesinde paneli kapatırsanız, o sekme için bir daha otomatik açılmaz.
 - Notepad++ kapanırken panel açıksa, bir sonraki açılışta Notepad++ paneli geri getirir.
@@ -43,6 +47,7 @@ Menü: **Eklentiler > TroiaLens**
 | Aktif dosyayı analiz et | Uzantıya bakmadan analiz eder |
 | Trace dosyalarında paneli otomatik aç | Açık / kapalı |
 | Sekme değişince yeniden analiz et | Panel açıkken her sekme değişiminde analiz |
+| Satır ayrıntısını sağda kayan panelde aç | Kapalıysa ayrıntı alt bölmede açılır |
 
 Ayarlar `plugins\config\TroiaLens.ini` içinde:
 
@@ -50,6 +55,7 @@ Ayarlar `plugins\config\TroiaLens.ini` içinde:
 |---|---|---|
 | `AutoOpen` | `1` | Trace uzantılı dosyada paneli otomatik aç |
 | `AnalyzeOnTabSwitch` | `1` | Panel açıkken her sekme değişiminde analiz et |
+| `DetailSlideOver` | `0` | `1` ise satır ayrıntısı sağda kayan panelde açılır |
 | `Extensions` | `.trace` | Trace sayılan uzantılar, `;` ile ayrılır |
 | `DevTools` | `0` | `1` ise panelde F12 geliştirici araçları açılır |
 
@@ -163,17 +169,17 @@ yükleyen bir `AssemblyResolve` işleyicisi kaydeder.
 - `SCI_GETCODEPAGE` 65001 ise metin UTF-8'dir; değilse sistem ANSI kod sayfası (Türkçe Windows'ta 1254) ile
   çözülüp UTF-8'e çevrilir.
 - Sayfanın gönderdiği satır, parser'ın saydığı satırdır (`\r?\n` ile bölünmüş). Scintilla tek başına CR'yi de satır
-  sonu sayar; bu yüzden panelde görünen satır numarası ile Notepad++'ın satır numarası farklı olabilir. Eklenti her
-  analizde `\n` konumlarını tutar, satırı byte konumuna çevirir ve `SCI_GOTOPOS` kullanır. İmleç her zaman doğru
-  satıra gider.
+  sonu sayar. Parser bu CR'lerin yerini tutar; panel "Dosya satırı" olarak Notepad++'ın satır numarasını gösterir.
+  Eklenti her analizde `\n` konumlarını tutar, satırı byte konumuna çevirir ve `SCI_GOTOPOS` kullanır. İmleç her
+  zaman doğru satıra gider.
 - Aynı tampon aynı uzunluktaysa sekme değişiminde yeniden analiz edilmez; panel durumu (sekme, açık detay) korunur.
 
 ### Host ↔ sayfa mesajları
 
 | Yön | Mesaj |
 |---|---|
-| sayfa → host | `{ type: 'ready' }`, `{ type: 'gotoLine', line, focus }`, `{ type: 'reload' }` |
-| host → sayfa | `{ type: 'theme', dark }`, `{ type: 'loadUrl', name, url }`, `{ type: 'notTrace', name }` |
+| sayfa → host | `{ type: 'ready' }`, `{ type: 'gotoLine', line, focus }`, `{ type: 'mark', from, to, line, lineEnd, word }`, `{ type: 'clearMarks' }`, `{ type: 'reload' }`, `{ type: 'setPrefs', detailSlideOver }` |
+| host → sayfa | `{ type: 'theme', dark }`, `{ type: 'prefs', detailSlideOver }`, `{ type: 'loadUrl', name, url }`, `{ type: 'notTrace', name }`, `{ type: 'caret', line }` |
 
 Host, metni ve temayı ancak `ready` geldikten sonra gönderir; sayfa yeniden yüklenirse son durumu tekrar yollar.
 

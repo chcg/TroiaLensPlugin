@@ -13,7 +13,7 @@ namespace TroiaLens
 {
     /// <summary>
     /// Dockable panel hosting the analysis UI (web\index.html) in WebView2.
-    /// Page → host: ready, gotoLine, reload. Host → page: theme, loadUrl, notTrace.
+    /// Page → host: ready, gotoLine, mark, clearMarks, reload, setPrefs. Host → page: theme, prefs, loadUrl, notTrace, caret.
     /// </summary>
     internal sealed class PanelForm : Form
     {
@@ -28,6 +28,7 @@ namespace TroiaLens
         private readonly string _userDataDir;
         private readonly bool _devTools;
         private bool _dark;
+        private bool _slideOver;
         private bool _pageReady;
 
         // Last document message; sent again whenever the page (re)loads
@@ -36,13 +37,14 @@ namespace TroiaLens
         private byte[] _data;
         private string _dataToken;
 
-        public PanelForm(string webDir, string loaderDir, string userDataDir, bool dark, bool devTools)
+        public PanelForm(string webDir, string loaderDir, string userDataDir, bool dark, bool devTools, bool slideOver)
         {
             _webDir = webDir;
             _loaderDir = loaderDir;
             _userDataDir = userDataDir;
             _devTools = devTools;
             _dark = dark;
+            _slideOver = slideOver;
 
             Text = Plugin.Name;
             FormBorderStyle = FormBorderStyle.None;
@@ -121,6 +123,9 @@ namespace TroiaLens
             Post(_state);
         }
 
+        /// <summary>The editor caret moved to another trace line of the shown document.</summary>
+        public void PostCaret(int line) => Post(Json.Serialize(new Dictionary<string, object> { ["type"] = "caret", ["line"] = line }));
+
         public void ApplyTheme(bool dark)
         {
             _dark = dark;
@@ -141,7 +146,16 @@ namespace TroiaLens
             }
         }
 
+        /// <summary>Statement detail as a slide-over from the right instead of a pane under the views.</summary>
+        public void SetDetailSlideOver(bool on)
+        {
+            _slideOver = on;
+            Post(PrefsMessage());
+        }
+
         private string ThemeMessage() => Json.Serialize(new Dictionary<string, object> { ["type"] = "theme", ["dark"] = _dark });
+
+        private string PrefsMessage() => Json.Serialize(new Dictionary<string, object> { ["type"] = "prefs", ["detailSlideOver"] = _slideOver });
 
         private void Post(string json)
         {
@@ -166,6 +180,7 @@ namespace TroiaLens
                 case "ready":
                     _pageReady = true;
                     Post(ThemeMessage());
+                    Post(PrefsMessage());
                     if (_state != null) Post(_state);
                     break;
                 case "gotoLine":
@@ -175,11 +190,23 @@ namespace TroiaLens
                         Plugin.GotoLine(Convert.ToInt32(line), focus);
                     }
                     break;
+                case "mark":
+                    Plugin.Mark(Int(msg, "from"), Int(msg, "to"), Int(msg, "line"), Int(msg, "lineEnd"), msg.TryGetValue("word", out object word) ? word as string : null);
+                    break;
+                case "clearMarks":
+                    Plugin.ClearMarks();
+                    break;
                 case "reload":
                     Plugin.ReloadRequested();
                     break;
+                case "setPrefs":
+                    if (msg.TryGetValue("detailSlideOver", out object slide) && slide is bool on) Plugin.SetDetailSlideOver(on);
+                    break;
             }
         }
+
+        private static int Int(Dictionary<string, object> msg, string key) =>
+            msg.TryGetValue(key, out object value) && value != null ? Convert.ToInt32(value) : 0;
 
         private void ServeData(CoreWebView2Environment env, CoreWebView2WebResourceRequestedEventArgs e)
         {

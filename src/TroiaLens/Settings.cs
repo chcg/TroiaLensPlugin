@@ -23,6 +23,9 @@ namespace TroiaLens
         /// <summary>Allows F12 developer tools in the panel.</summary>
         public bool DevTools { get; set; }
 
+        /// <summary>Statement detail slides over from the right instead of docking under the views.</summary>
+        public bool DetailSlideOver { get; set; }
+
         public Settings(string configDir)
         {
             _file = Path.Combine(configDir, "TroiaLens.ini");
@@ -33,6 +36,7 @@ namespace TroiaLens
             AutoOpen = Read("AutoOpen", AutoOpen);
             AnalyzeOnTabSwitch = Read("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch);
             DevTools = Read("DevTools", DevTools);
+            DetailSlideOver = Read("DetailSlideOver", DetailSlideOver);
             string ext = Read("Extensions", string.Join(";", Extensions));
             Extensions = ext.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(e => e.StartsWith(".") ? e : "." + e)
@@ -48,6 +52,7 @@ namespace TroiaLens
                 Write("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch ? "1" : "0");
                 Write("Extensions", string.Join(";", Extensions));
                 Write("DevTools", DevTools ? "1" : "0");
+                Write("DetailSlideOver", DetailSlideOver ? "1" : "0");
             }
             catch (Exception)
             {

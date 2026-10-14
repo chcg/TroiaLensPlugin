@@ -53,8 +53,14 @@ namespace TroiaLens.Npp
             IntPtr hwndFrom = Marshal.ReadIntPtr(notifyCode);
             IntPtr idFrom = Marshal.ReadIntPtr(notifyCode, IntPtr.Size);
             uint code = (uint)Marshal.ReadInt32(notifyCode, IntPtr.Size * 2);
-            if (hwndFrom != Plugin.Npp.NppHandle) return;
-            Plugin.OnNotification(code, idFrom);
+            if (hwndFrom == Plugin.Npp.NppHandle)
+                Plugin.OnNotification(code, idFrom);
+            else if (hwndFrom == Plugin.Npp.ScintillaMainHandle || hwndFrom == Plugin.Npp.ScintillaSecondHandle)
+            {
+                if (code == SciMsg.SCN_UPDATEUI) Plugin.OnEditorUpdate(hwndFrom);
+                // SCNotification continues after the header with Sci_Position position
+                else if (code == SciMsg.SCN_DOUBLECLICK) Plugin.OnDoubleClick(hwndFrom, Marshal.ReadIntPtr(notifyCode, IntPtr.Size * 3).ToInt64());
+            }
         }
     }
 }

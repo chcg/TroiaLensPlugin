@@ -17,7 +17,7 @@ namespace TroiaLens
         public static NppData Npp;
         public static readonly FuncItems Funcs = new FuncItems();
 
-        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch;
+        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver;
         private static Settings _settings;
         private static string _configDir;
         private static PanelForm _panel;
@@ -34,6 +34,24 @@ namespace TroiaLens
         private static long _docLength = -1;
         private static int[] _lineStarts;
 
+        // Trace line of the editor caret, last reported to or moved by the page; unchanged lines are not reported again
+        private static int _caretLine = -1;
+
+        // Editor marks for the selected tree row: its method's span (background + margin bar), its own lines and
+        // the method name. Markers and indicators belong to the document, so they follow it across views.
+        private static int _markSpan = -1, _markRow, _markBar, _indWord;
+        // Indicator for every occurrence of the word double-clicked in the analysed document, and that word
+        private static int _indPick;
+        private static string _pickedWord;
+        // Theme the mark styles were defined for
+        private static bool? _marksDark;
+        // Span currently drawn ("from:to:word"); moving within one method only moves the row mark
+        private static string _markedSpan;
+        private const int Amber = 0x0B9EF5; // #F59E0B as Scintilla BGR
+        private const int LightYellow = 0x9DF5FF; // #FFF59D
+        private const int Teal = 0xA9BB27; // #27BBA9
+        private const int Fuchsia = 0xEF46D9; // #D946EF
+
         private static string PluginDir => Path.GetDirectoryName(typeof(Plugin).Assembly.Location);
 
         public static void CommandMenuInit()
@@ -47,6 +65,7 @@ namespace TroiaLens
             Funcs.Add("", null);
             _cmdAutoOpen = Funcs.Add("Trace dosyalarında paneli otomatik aç", () => Safe(ToggleAutoOpen), _settings.AutoOpen);
             _cmdTabSwitch = Funcs.Add("Sekme değişince yeniden analiz et", () => Safe(ToggleTabSwitch), _settings.AnalyzeOnTabSwitch);
+            _cmdSlideOver = Funcs.Add("Satır ayrıntısını sağda kayan panelde aç", () => Safe(ToggleSlideOver), _settings.DetailSlideOver);
             Funcs.Add("", null);
             Funcs.Add("Hakkında", () => Safe(About));
         }
@@ -69,6 +88,7 @@ namespace TroiaLens
                         break;
                     case NppMsg.NPPN_DARKMODECHANGED:
                         _panel?.ApplyTheme(IsDarkMode());
+                        if (_markSpan >= 0) DefineMarkStyles();
                         break;
                     case NppMsg.NPPN_SHUTDOWN:
                         _settings.Save();
@@ -139,6 +159,17 @@ namespace TroiaLens
             _settings.Save();
         }
 
+        private static void ToggleSlideOver() => SetDetailSlideOver(!_settings.DetailSlideOver);
+
+        /// <summary>From the menu or the detail pane's own switch: saves the choice, ticks the menu item and tells the page.</summary>
+        internal static void SetDetailSlideOver(bool on)
+        {
+            _settings.DetailSlideOver = on;
+            SetCheck(_cmdSlideOver, on);
+            _settings.Save();
+            _panel?.SetDetailSlideOver(on);
+        }
+
         private static void About()
         {
             var v = typeof(Plugin).Assembly.GetName().Version;
@@ -157,7 +188,7 @@ namespace TroiaLens
             if (_panel == null)
             {
                 string userData = Path.Combine(_configDir, Name, "WebView2");
-                _panel = new PanelForm(Path.Combine(PluginDir, "web"), PluginDir, userData, IsDarkMode(), _settings.DevTools);
+                _panel = new PanelForm(Path.Combine(PluginDir, "web"), PluginDir, userData, IsDarkMode(), _settings.DevTools, _settings.DetailSlideOver);
                 RegisterDock(_panel);
                 _panel.Start();
             }
@@ -172,6 +203,7 @@ namespace TroiaLens
 
         private static void HidePanel()
         {
+            ClearMarks(pick: true);
             if (_panel != null) Win32.SendMessage(Npp.NppHandle, NppMsg.NPPM_DMMHIDE, IntPtr.Zero, _panel.Handle);
             _panelVisible = false;
             _autoOpened = false;
@@ -182,6 +214,7 @@ namespace TroiaLens
         public static void OnPanelClosed()
         {
             if (_settings.IsTraceExtension(CurrentPath())) Dismissed.Add(CurrentBufferId());
+            ClearMarks(pick: true);
             _panelVisible = false;
             _autoOpened = false;
             SetCheck(_cmdPanel, false);
@@ -219,6 +252,14 @@ namespace TroiaLens
             IntPtr sci = CurrentScintilla();
             long length = Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64();
             if (!force && buffer == _docBuffer && length == _docLength) return;
+
+            // The page starts over without a selection
+            if (_markSpan >= 0)
+            {
+                ClearMarks(sci);
+                ClearPick(sci);
+            }
+            _caretLine = -1;
 
             string path = CurrentPath();
             string name = string.IsNullOrEmpty(path) ? "?" : Path.GetFileName(path);
@@ -293,9 +334,10 @@ namespace TroiaLens
                 }
 
                 IntPtr sci = CurrentScintilla();
-                int index = Math.Max(0, Math.Min(_lineStarts.Length - 1, line - 1));
-                long pos = Math.Min(_lineStarts[index], Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64());
+                long pos = TracePos(sci, line);
                 long docLine = Sci(sci, SciMsg.SCI_LINEFROMPOSITION, (IntPtr)pos).ToInt64();
+                // The caret move below must not come back to the page as a caret report
+                _caretLine = TraceLineAt(pos);
                 Sci(sci, SciMsg.SCI_ENSUREVISIBLE, (IntPtr)docLine);
                 long visible = Sci(sci, SciMsg.SCI_VISIBLEFROMDOCLINE, (IntPtr)docLine).ToInt64();
                 long onScreen = Sci(sci, SciMsg.SCI_LINESONSCREEN).ToInt64();
@@ -307,6 +349,235 @@ namespace TroiaLens
                     Win32.SetFocus(sci);
                 }
             });
+        }
+
+        /// <summary>Reports caret moves in the analysed document so the call tree can select the matching row.</summary>
+        public static void OnEditorUpdate(IntPtr sci)
+        {
+            if (!_panelVisible || _panel == null || _lineStarts == null) return;
+            Safe(() =>
+            {
+                if (sci != CurrentScintilla() || CurrentBufferId() != _docBuffer) return;
+                int line = TraceLineAt(Sci(sci, SciMsg.SCI_GETCURRENTPOS).ToInt64());
+                if (line == _caretLine) return;
+                _caretLine = line;
+                _panel.PostCaret(line);
+            });
+        }
+
+        /// <summary>
+        /// Double-clicking a word in the analysed document marks all its occurrences there (whole word, any case);
+        /// double-clicking the same word again or outside a word removes them.
+        /// </summary>
+        public static void OnDoubleClick(IntPtr sci, long pos)
+        {
+            if (!_panelVisible || _lineStarts == null) return;
+            Safe(() =>
+            {
+                if (sci != CurrentScintilla() || CurrentBufferId() != _docBuffer) return;
+                DefineMarks();
+                long start = Sci(sci, SciMsg.SCI_WORDSTARTPOSITION, (IntPtr)pos, (IntPtr)1).ToInt64();
+                long end = Sci(sci, SciMsg.SCI_WORDENDPOSITION, (IntPtr)pos, (IntPtr)1).ToInt64();
+                string word = end > start && end - start <= 200 ? TextRange(sci, start, end) : null;
+                string previous = _pickedWord;
+
+                ClearPick(sci);
+                if (string.IsNullOrEmpty(word) || string.Equals(word, previous, StringComparison.OrdinalIgnoreCase)) return;
+                _pickedWord = word;
+                MarkAll(sci, _indPick, 0, Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64(), word, SciMsg.SCFIND_WHOLEWORD);
+            });
+        }
+
+        private static void ClearPick(IntPtr sci)
+        {
+            Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)_indPick);
+            Sci(sci, SciMsg.SCI_INDICATORCLEARRANGE, IntPtr.Zero, Sci(sci, SciMsg.SCI_GETLENGTH));
+            _pickedWord = null;
+        }
+
+        private static string TextRange(IntPtr sci, long start, long end)
+        {
+            var bytes = new byte[end - start];
+            Marshal.Copy(Sci(sci, SciMsg.SCI_GETRANGEPOINTER, (IntPtr)start, (IntPtr)bytes.Length), bytes, 0, bytes.Length);
+            bool utf8 = Sci(sci, SciMsg.SCI_GETCODEPAGE).ToInt32() == SciMsg.SC_CP_UTF8;
+            return (utf8 ? Encoding.UTF8 : Encoding.Default).GetString(bytes);
+        }
+
+        /// <summary>
+        /// Marks a tree row in the analysed document: trace lines from..to (its method, 0 = none) get a tinted
+        /// background and a margin bar, line..lineEnd a stronger tint, and whole-word matches of word inside the span a box.
+        /// </summary>
+        public static void Mark(int from, int to, int line, int lineEnd, string word)
+        {
+            Safe(() =>
+            {
+                if (_lineStarts == null || CurrentBufferId() != _docBuffer) return;
+                IntPtr sci = CurrentScintilla();
+                DefineMarks();
+                ShowMarksInText(sci);
+
+                string span = $"{from}:{to}:{word}";
+                if (span != _markedSpan)
+                {
+                    ClearMarks(sci);
+                    if (from > 0 && to >= from)
+                    {
+                        long first = DocLine(sci, from), last = DocLineEnd(sci, to);
+                        // A whole huge trace as the span would only cost time and say nothing
+                        if (last - first < 200000)
+                        {
+                            for (long l = first; l <= last; l++)
+                            {
+                                Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markSpan);
+                                Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markBar);
+                            }
+                            if (!string.IsNullOrEmpty(word))
+                                MarkAll(sci, _indWord, Sci(sci, SciMsg.SCI_POSITIONFROMLINE, (IntPtr)first).ToInt64(),
+                                    Sci(sci, SciMsg.SCI_GETLINEENDPOSITION, (IntPtr)last).ToInt64(), word,
+                                    SciMsg.SCFIND_WHOLEWORD | SciMsg.SCFIND_MATCHCASE);
+                        }
+                    }
+                    _markedSpan = span;
+                }
+
+                Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
+                if (line > 0)
+                {
+                    long first = DocLine(sci, line), last = DocLineEnd(sci, Math.Max(line, lineEnd));
+                    for (long l = first; l <= last && l - first < 1000; l++) Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markRow);
+                }
+            });
+        }
+
+        /// <summary>Removes the row marks (and with pick the double-clicked word's marks) from the analysed document, if it is the active one.</summary>
+        public static void ClearMarks(bool pick = false)
+        {
+            Safe(() =>
+            {
+                if (_markSpan < 0 || _lineStarts == null || CurrentBufferId() != _docBuffer) return;
+                ClearMarks(CurrentScintilla());
+                if (pick) ClearPick(CurrentScintilla());
+            });
+        }
+
+        private static void ClearMarks(IntPtr sci)
+        {
+            Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markSpan);
+            Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
+            Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markBar);
+            Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)_indWord);
+            Sci(sci, SciMsg.SCI_INDICATORCLEARRANGE, IntPtr.Zero, Sci(sci, SciMsg.SCI_GETLENGTH));
+            _markedSpan = null;
+        }
+
+        /// <summary>Fills an indicator over every match of word between start and end.</summary>
+        private static void MarkAll(IntPtr sci, int indicator, long start, long end, string word, int flags)
+        {
+            bool utf8 = Sci(sci, SciMsg.SCI_GETCODEPAGE).ToInt32() == SciMsg.SC_CP_UTF8;
+            byte[] needle = (utf8 ? Encoding.UTF8 : Encoding.Default).GetBytes(word);
+            Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)indicator);
+            Sci(sci, SciMsg.SCI_SETSEARCHFLAGS, (IntPtr)flags);
+            for (int hits = 0; hits < 20000 && start < end; hits++)
+            {
+                Sci(sci, SciMsg.SCI_SETTARGETRANGE, (IntPtr)start, (IntPtr)end);
+                if (Win32.SendMessage(sci, SciMsg.SCI_SEARCHINTARGET, (IntPtr)needle.Length, needle).ToInt64() < 0) break;
+                long s = Sci(sci, SciMsg.SCI_GETTARGETSTART).ToInt64();
+                long e = Sci(sci, SciMsg.SCI_GETTARGETEND).ToInt64();
+                Sci(sci, SciMsg.SCI_INDICATORFILLRANGE, (IntPtr)s, (IntPtr)(e - s));
+                start = Math.Max(e, s + 1);
+            }
+        }
+
+        private static void DefineMarks()
+        {
+            if (_markSpan < 0)
+            {
+                _markSpan = Allocate(NppMsg.NPPM_ALLOCATEMARKER, 3, 10);
+                _markRow = _markSpan + 1;
+                _markBar = _markSpan + 2;
+                _indWord = Allocate(NppMsg.NPPM_ALLOCATEINDICATOR, 2, 9);
+                _indPick = _indWord + 1;
+            }
+            if (_marksDark != IsDarkMode()) DefineMarkStyles();
+        }
+
+        private static void DefineMarkStyles()
+        {
+            bool dark = IsDarkMode();
+            _marksDark = dark;
+            // Styles belong to each view, the marks themselves to the document
+            foreach (IntPtr sci in new[] { Npp.ScintillaMainHandle, Npp.ScintillaSecondHandle })
+            {
+                DefineBackground(sci, _markSpan, Amber, 0x24, SciMsg.SC_LAYER_OVER_TEXT);
+                // The selected row's whole block in light yellow, under the text so it stays crisp; a dark theme gets a
+                // fainter tint to keep its light text readable
+                DefineBackground(sci, _markRow, LightYellow, dark ? 0x48 : 0xB4, SciMsg.SC_LAYER_UNDER_TEXT);
+                Sci(sci, SciMsg.SCI_MARKERDEFINE, (IntPtr)_markBar, (IntPtr)SciMsg.SC_MARK_LEFTRECT);
+                Sci(sci, SciMsg.SCI_MARKERSETBACK, (IntPtr)_markBar, (IntPtr)Amber);
+                DefineBox(sci, _indWord, Teal, 90);
+                DefineBox(sci, _indPick, Fuchsia, dark ? 110 : 80);
+            }
+        }
+
+        private static void DefineBox(IntPtr sci, int indicator, int color, int alpha)
+        {
+            Sci(sci, SciMsg.SCI_INDICSETSTYLE, (IntPtr)indicator, (IntPtr)SciMsg.INDIC_ROUNDBOX);
+            Sci(sci, SciMsg.SCI_INDICSETFORE, (IntPtr)indicator, (IntPtr)color);
+            Sci(sci, SciMsg.SCI_INDICSETALPHA, (IntPtr)indicator, (IntPtr)alpha);
+            Sci(sci, SciMsg.SCI_INDICSETOUTLINEALPHA, (IntPtr)indicator, (IntPtr)220);
+            Sci(sci, SciMsg.SCI_INDICSETUNDER, (IntPtr)indicator, (IntPtr)1);
+        }
+
+        private static void DefineBackground(IntPtr sci, int marker, int color, int alpha, int layer)
+        {
+            Sci(sci, SciMsg.SCI_MARKERDEFINE, (IntPtr)marker, (IntPtr)SciMsg.SC_MARK_BACKGROUND);
+            Sci(sci, SciMsg.SCI_MARKERSETBACK, (IntPtr)marker, (IntPtr)color);
+            // Scintilla 4 (Notepad++ before 8.4) knows only the alpha; Scintilla 5 draws it translucently on the given layer
+            Sci(sci, SciMsg.SCI_MARKERSETALPHA, (IntPtr)marker, (IntPtr)alpha);
+            Sci(sci, SciMsg.SCI_MARKERSETBACKTRANSLUCENT, (IntPtr)marker, (IntPtr)(color | (alpha << 24)));
+            Sci(sci, SciMsg.SCI_MARKERSETLAYER, (IntPtr)marker, (IntPtr)layer);
+        }
+
+        /// <summary>
+        /// Scintilla draws a background marker in the text only when some margin's mask holds it (margins never draw
+        /// one themselves), so all marks go to the symbol margin (1), where the bar shows next to bookmarks.
+        /// Notepad++ may reset the mask, so this runs before every mark.
+        /// </summary>
+        private static void ShowMarksInText(IntPtr sci)
+        {
+            int bits = (1 << _markSpan) | (1 << _markRow) | (1 << _markBar);
+            int mask = Sci(sci, SciMsg.SCI_GETMARGINMASKN, (IntPtr)1).ToInt32();
+            if ((mask & bits) != bits) Sci(sci, SciMsg.SCI_SETMARGINMASKN, (IntPtr)1, (IntPtr)(mask | bits));
+        }
+
+        /// <summary>Reserves marker / indicator ids no other plugin uses; Notepad++ versions without the message get fixed ones.</summary>
+        private static int Allocate(uint msg, int count, int fallback) =>
+            Win32.SendMessage(Npp.NppHandle, msg, (IntPtr)count, out int start) != IntPtr.Zero ? start : fallback;
+
+        /// <summary>Editor position of a 1-based trace line.</summary>
+        private static long TracePos(IntPtr sci, int line)
+        {
+            int index = Math.Max(0, Math.Min(_lineStarts.Length - 1, line - 1));
+            return Math.Min(_lineStarts[index], Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64());
+        }
+
+        private static long DocLine(IntPtr sci, int traceLine) =>
+            Sci(sci, SciMsg.SCI_LINEFROMPOSITION, (IntPtr)TracePos(sci, traceLine)).ToInt64();
+
+        /// <summary>Last editor line of a 1-based trace line; a trace line spans several when it holds bare CRs.</summary>
+        private static long DocLineEnd(IntPtr sci, int traceLine)
+        {
+            long length = Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64();
+            // The trace line's own LF, just before the next line starts
+            long end = traceLine >= 1 && traceLine < _lineStarts.Length ? _lineStarts[traceLine] - 1 : length;
+            return Sci(sci, SciMsg.SCI_LINEFROMPOSITION, (IntPtr)Math.Max(0, Math.Min(end, length))).ToInt64();
+        }
+
+        /// <summary>1-based trace line containing an editor position.</summary>
+        private static int TraceLineAt(long pos)
+        {
+            int i = Array.BinarySearch(_lineStarts, (int)Math.Min(pos, int.MaxValue));
+            return (i >= 0 ? i : ~i - 1) + 1;
         }
 
         // ---- Notepad++ helpers ----

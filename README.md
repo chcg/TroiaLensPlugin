@@ -123,9 +123,26 @@ Kurulum programı imzalı olmadığı için Windows SmartScreen uyarı verebilir
    (genellikle `C:\Program Files\Notepad++\plugins`).
 4. Notepad++'ı yeniden açın.
 
-Eklenti açılırken "Bu bütünleştirilmiş kod ... uzak kaynaktan yüklenemiyor" benzeri bir hata verirse, DLL'ler
-Windows tarafından engellenmiştir. `TroiaLens` klasöründe şu komutu çalıştırıp Notepad++'ı yeniden açın:
-`Get-ChildItem . -Recurse | Unblock-File`
+**"Uzak kaynaktan yüklenemiyor" hatası alırsanız:**
+
+Windows, internetten indirilen dosyaları engeller. Bu yüzden Notepad++ açılırken "Bu bütünleştirilmiş kod ... uzak
+kaynaktan yüklenemiyor" benzeri bir hata çıkabilir. Kurulum programı ve MSI ile kurulumda bu sorun olmaz.
+Zip ile kurduysanız engeli şöyle kaldırın:
+
+1. Notepad++'ı kapatın.
+2. Başlat menüsünde **PowerShell** yazın, sağ tıklayıp **Yönetici olarak çalıştır**'ı seçin. (Komut İstemi (cmd) ile
+   çalışmaz.)
+3. Şu komutu yapıştırıp Enter'a basın:
+
+   ```powershell
+   Get-ChildItem "C:\Program Files\Notepad++\plugins\TroiaLens" -Recurse | Unblock-File
+   ```
+
+   Notepad++ başka bir klasördeyse tırnak içindeki yolu değiştirin.
+4. Notepad++'ı açın.
+
+Bu hatayı baştan önlemek için zip dosyasını açmadan önce engelini kaldırabilirsiniz: zip dosyasına sağ tıklayın,
+**Özellikler**'i seçin, alttaki **Engellemeyi kaldır** kutusunu işaretleyip **Tamam**'a tıklayın.
 
 **Kaynaktan derlemek için:**
 

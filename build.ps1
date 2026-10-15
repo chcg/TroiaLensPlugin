@@ -5,10 +5,12 @@
     out\TroiaLens\Microsoft.Web.WebView2.Core.dll, Microsoft.Web.WebView2.WinForms.dll, WebView2Loader.dll
     out\TroiaLens\web\...            (web\dist)
     out\TroiaLens-<version>-x64.zip
+    out\TroiaLens-<version>-x64.msi       (plugin only; finds the Notepad++ folder itself)
+    out\TroiaLens-Setup-<version>.exe     (single package: .NET 4.8, WebView2, Node.js when missing + the MSI)
 
-  -SkipWeb reuses the existing web\dist.
+  -SkipWeb reuses the existing web\dist. -SkipInstaller skips the MSI and the setup exe.
 #>
-param([switch]$SkipWeb)
+param([switch]$SkipWeb, [switch]$SkipInstaller)
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -47,6 +49,22 @@ $zip = Join-Path $out "TroiaLens-$version-x64.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path $pkg -DestinationPath $zip
 
+if (-not $SkipInstaller) {
+    # MSI versions are numeric only
+    $msiVersion = $version -replace '-.*$', ''
+    # The MSI picks up out\TroiaLens with a wildcard, so incremental builds could miss changed files
+    dotnet build (Join-Path $root 'installer\Bundle\TroiaLens.Bundle.wixproj') -c Release --nologo --no-incremental "-p:ProductVersion=$msiVersion"
+    if ($LASTEXITCODE) { throw 'Kurulum paketi derlemesi başarısız' }
+    $msi = Join-Path $out "TroiaLens-$msiVersion-x64.msi"
+    $setup = Join-Path $out "TroiaLens-Setup-$msiVersion.exe"
+    Copy-Item (Join-Path $root "installer\Package\bin\Release\TroiaLens-$msiVersion-x64.msi") $msi -Force
+    Copy-Item (Join-Path $root "installer\Bundle\bin\Release\TroiaLens-Setup-$msiVersion.exe") $setup -Force
+}
+
 Write-Host ''
 Write-Host "Eklenti klasörü: $pkg"
 Write-Host "Zip:             $zip"
+if (-not $SkipInstaller) {
+    Write-Host "MSI:             $msi"
+    Write-Host "Kurulum:         $setup"
+}

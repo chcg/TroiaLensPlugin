@@ -1,0 +1,22 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <!--
+    Plugin MSI: installs out\TroiaLens into <Notepad++>\plugins\TroiaLens.
+    build.ps1 passes -p:ProductVersion=<version>; PluginDir defaults to out\TroiaLens.
+  -->
+  <PropertyGroup>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
+    <PluginDir Condition="'$(PluginDir)' == ''">$(MSBuildThisFileDirectory)..\..\out\TroiaLens</PluginDir>
+    <OutputName>TroiaLens-$(ProductVersion)-x64</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <!-- AllowSameVersionUpgrades is intended: a re-published release keeps its version -->
+    <SuppressIces>ICE61</SuppressIces>
+    <DefineConstants>ProductVersion=$(ProductVersion);PluginDir=$(PluginDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Netfx.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,92 @@
+<!--
+  TroiaLens setup bundle. Chain:
+    1. .NET Framework 4.8            only when missing (web installer, downloads from Microsoft)
+    2. WebView2 Evergreen Runtime    only when missing (embedded bootstrapper, downloads from Microsoft)
+    3. Node.js (latest Current)      only when missing; NodeSetup.exe downloads it from nodejs.org.
+                                     Optional: a failure does not stop the setup. Skip with InstallNode=0.
+    4. TroiaLens MSI                 into <Notepad++>\plugins\TroiaLens
+
+  Command line:  TroiaLens-Setup.exe [/quiet] [NPPDIR="D:\Apps\Notepad++"] [InstallNode=0]
+  Prerequisites are permanent: uninstalling TroiaLens leaves them in place.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Bundle Name="TroiaLens"
+          Manufacturer="ufukt51"
+          Version="$(var.ProductVersion)"
+          UpgradeCode="33C2D471-61B3-472E-90BE-8E85E5DF1B09"
+          AboutUrl="https://github.com/ufukt51/TroiaLensPlugin"
+          HelpUrl="https://github.com/ufukt51/TroiaLensPlugin#readme">
+
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
+                                              LicenseUrl="https://github.com/ufukt51/TroiaLensPlugin/blob/main/LICENSE"
+                                              LocalizationFile="HyperlinkTheme.tr-TR.wxl"
+                                              SuppressOptionsUI="yes"
+                                              ShowVersion="yes" />
+    </BootstrapperApplication>
+
+    <Variable Name="NPPDIR" Type="string" Value="" bal:Overridable="yes" />
+    <Variable Name="InstallNode" Type="numeric" Value="1" bal:Overridable="yes" />
+
+    <!-- Notepad++: earlier TroiaLens install first, then the Notepad++ installer's key -->
+    <util:RegistrySearch Id="NppSavedDirSearch" Variable="NppSavedDir" Root="HKLM" Key="SOFTWARE\TroiaLens" Value="NppDir" Bitness="always64" />
+    <util:RegistrySearch Id="NppRegDirSearch" Variable="NppRegDir" Root="HKLM" Key="SOFTWARE\Notepad++" Bitness="always64" />
+    <util:RegistrySearch Id="Npp32DirSearch" Variable="Npp32Dir" Root="HKLM" Key="SOFTWARE\Notepad++" Bitness="always32" />
+    <!-- The MSI accepts a folder only if it exists; check the same here -->
+    <util:DirectorySearch Id="NppSavedDirExistsSearch" Variable="NppSavedDirExists" Path="[NppSavedDir]" Result="exists"
+                          After="NppSavedDirSearch" Condition="NppSavedDir" />
+    <util:DirectorySearch Id="NppRegDirExistsSearch" Variable="NppRegDirExists" Path="[NppRegDir]" Result="exists"
+                          After="NppRegDirSearch" Condition="NppRegDir" />
+
+    <bal:Condition Message="Yalnızca 32 bit Notepad++ bulundu. TroiaLens 64 bit Notepad++ ister. 64 bit Notepad++ kurup tekrar deneyin."
+                   Condition="WixBundleInstalled OR NPPDIR OR NppSavedDirExists OR NppRegDirExists OR NOT Npp32Dir" />
+    <bal:Condition Message="Notepad++ (64 bit) bulunamadı. Notepad++'ı kurun ya da klasörünü belirtin: TroiaLens-Setup.exe NPPDIR=&quot;D:\Apps\Notepad++&quot;"
+                   Condition="WixBundleInstalled OR NPPDIR OR NppSavedDirExists OR NppRegDirExists" />
+
+    <!-- WebView2: "pv" is missing or 0.0.0.0 when the runtime is not installed -->
+    <util:RegistrySearch Id="WebView2MachineSearch" Variable="WebView2Machine" Root="HKLM"
+                         Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Value="pv" Bitness="always32" />
+    <util:RegistrySearch Id="WebView2UserSearch" Variable="WebView2User" Root="HKCU"
+                         Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" Value="pv" />
+
+    <!-- Node.js: the official MSI's key or its default folder; NodeSetup.exe also looks at PATH -->
+    <util:RegistrySearch Id="NodeRegSearch" Variable="NodeRegPath" Root="HKLM" Key="SOFTWARE\Node.js" Value="InstallPath" Bitness="always64" />
+    <util:FileSearch Id="NodeExeSearch" Variable="NodeExeExists" Path="[ProgramFiles64Folder]nodejs\node.exe" Result="exists" />
+
+    <Chain>
+      <PackageGroupRef Id="NetFx48Web" />
+
+      <ExePackage Id="WebView2Runtime"
+                  DisplayName="Microsoft Edge WebView2 Runtime"
+                  SourceFile="$(var.WebView2Setup)"
+                  InstallArguments="/silent /install"
+                  DetectCondition="(WebView2Machine AND WebView2Machine &lt;&gt; &quot;0.0.0.0&quot;) OR (WebView2User AND WebView2User &lt;&gt; &quot;0.0.0.0&quot;)"
+                  PerMachine="yes"
+                  Permanent="yes"
+                  Vital="yes"
+                  Cache="remove" />
+
+      <ExePackage Id="NodeJs"
+                  DisplayName="Node.js"
+                  SourceFile="$(var.NodeSetup.TargetPath)"
+                  InstallArguments="--quiet"
+                  DetectCondition="NodeRegPath OR NodeExeExists"
+                  InstallCondition="InstallNode = 1"
+                  PerMachine="yes"
+                  Permanent="yes"
+                  Vital="no"
+                  Cache="remove">
+        <ExitCode Value="3010" Behavior="scheduleReboot" />
+        <ExitCode Value="1641" Behavior="scheduleReboot" />
+      </ExePackage>
+
+      <MsiPackage Id="TroiaLens" SourceFile="$(var.TroiaLens.Package.TargetPath)">
+        <MsiProperty Name="NPPDIR" Value="[NPPDIR]" Condition="NPPDIR" />
+      </MsiPackage>
+    </Chain>
+
+  </Bundle>
+</Wix>

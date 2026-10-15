@@ -86,7 +86,34 @@ Geliştiriciler için: `DevTools=1` ayarı panelde F12 ile geliştirici araçlar
 
 ## Kurulum
 
-Eklentiyi iki yoldan kurabilirsiniz: hazır zip dosyasını indirerek ya da kaynak koddan derleyerek.
+Eklentiyi üç yoldan kurabilirsiniz: kurulum programıyla, hazır zip dosyasıyla ya da kaynak koddan derleyerek.
+
+**Kurulum programıyla (önerilen):**
+
+1. [Releases](https://github.com/ufukt51/TroiaLensPlugin/releases/latest) sayfasından `TroiaLens-Setup-<sürüm>.exe` dosyasını indirin.
+2. Notepad++'ı kapatın ve dosyayı çalıştırın. Yönetici izni istenir.
+
+Kurulum programı şunları yapar:
+
+- Notepad++'ın kurulu olduğu klasörü kendisi bulur ve eklentiyi `plugins\TroiaLens` klasörüne kurar.
+- Eksikse .NET Framework 4.8 ve WebView2 Runtime'ı Microsoft'tan indirip kurar.
+- Node.js kurulu değilse en son sürümü nodejs.org'dan indirir, dosyayı doğrular ve kurar. Eklenti Node.js olmadan da
+  çalışır; bu adım başarısız olursa kurulum devam eder.
+
+Eklentiyi **Ayarlar > Uygulamalar** bölümünden "TroiaLens" adıyla kaldırabilirsiniz. .NET, WebView2 ve Node.js kaldırılmaz.
+
+Komut satırı seçenekleri:
+
+| Seçenek | Ne yapar? |
+|---|---|
+| `/quiet` | Pencere açmadan kurar |
+| `NPPDIR="D:\Apps\Notepad++"` | Notepad++ bulunamazsa ya da taşınabilir sürüm kullanıyorsanız klasörü belirtir |
+| `InstallNode=0` | Node.js kurmaz |
+
+Yalnızca eklentiyi kurmak isterseniz `TroiaLens-<sürüm>-x64.msi` dosyasını kullanabilirsiniz. MSI, Notepad++ klasörünü
+kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.0-x64.msi /qn NPPDIR="D:\Apps\Npp"`
+
+Kurulum programı imzalı olmadığı için Windows SmartScreen uyarı verebilir. **Ek bilgi > Yine de çalıştır** ile devam edin.
 
 **Hazır zip ile:**
 
@@ -111,22 +138,26 @@ cd TroiaLensPlugin
 
 - Kurmadan önce Notepad++'ı kapatın. Gerekirse yönetici izni istenir.
 - Notepad++ başka bir klasördeyse (örneğin taşınabilir sürüm): `.\install.ps1 -NppDir D:\Apps\Npp`
-- Derlenen eklenti `out\TroiaLens\` klasörüne, paylaşmaya hazır zip dosyası da `out\` klasörüne yazılır.
+- Derlenen eklenti `out\TroiaLens\` klasörüne yazılır. Zip, MSI ve `TroiaLens-Setup-<sürüm>.exe` dosyaları da `out\`
+  klasörüne yazılır. Kurulum paketleri [WiX Toolset](https://wixtoolset.org) ile derlenir; NuGet'ten kendiliğinden
+  iner. Kurulum paketlerini atlamak için: `.\build.ps1 -SkipInstaller`
+- Kurulum paketlerinin kaynakları `installer\` klasöründedir: `Package` (MSI), `Bundle` (kurulum programı) ve
+  `NodeSetup` (Node.js'i indirip kuran yardımcı program).
 - Web arayüzünde yaptığınız değişikliklerin Notepad++'ta görünmesi için `build.ps1` ve `install.ps1` komutlarını
   yeniden çalıştırın. Yalnızca `npm run build` yetmez.
 - Web arayüzü değişmediyse `.\build.ps1 -SkipWeb` ile yalnızca eklentiyi derleyebilirsiniz.
 
 ## Yeni sürüm yayınlama
 
-Zip dosyası Releases sayfasına VS Code'tan yüklenir. İlk kullanımdan önce [GitHub CLI](https://cli.github.com)
+Dosyalar Releases sayfasına VS Code'tan yüklenir. İlk kullanımdan önce [GitHub CLI](https://cli.github.com)
 kurun ve `gh auth login` ile oturum açın.
 
 1. Sürümü artıracaksanız `src\TroiaLens\TroiaLens.csproj` içindeki `<Version>` değerini değiştirin.
 2. Değişiklikleri commit edip push edin.
 3. VS Code'ta **Ctrl+Shift+P > Tasks: Run Task > TroiaLens: Release yayınla** komutunu çalıştırın.
 
-Görev eklentiyi derler ve zip dosyasını `v<sürüm>` adıyla Releases sayfasına yükler. Bu sürüm daha önce
-yayınlandıysa onay ister; onaylarsanız eski zip'in yerine yenisini koyar.
+Görev eklentiyi derler; zip, MSI ve kurulum programını `v<sürüm>` adıyla Releases sayfasına yükler. Bu sürüm
+daha önce yayınlandıysa onay ister; onaylarsanız eski dosyaların yerine yenilerini koyar.
 
 ## Web arayüzünü güncelleme
 

@@ -1,0 +1,80 @@
+<!--
+  TroiaLens plugin MSI (per-machine, x64).
+
+  The Notepad++ folder is taken from, in order:
+    1. NPPDIR on the command line          msiexec /i TroiaLens.msi NPPDIR="D:\Apps\Npp"
+    2. the folder used by an earlier TroiaLens install (HKLM\SOFTWARE\TroiaLens\NppDir)
+    3. the Notepad++ installer's own key   (HKLM\SOFTWARE\Notepad++, 64-bit view)
+  Files go to [NPPDIR]plugins\TroiaLens.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package Name="TroiaLens (Notepad++ eklentisi)"
+           Manufacturer="ufukt51"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="DA2AE575-ED0C-4C73-AD1F-7FF91D7A323F"
+           Scope="perMachine"
+           Language="1055"
+           Codepage="1254"
+           InstallerVersion="500">
+
+    <SummaryInformation Description="TroiaLens - Canias Troia trace analizi için Notepad++ eklentisi" Codepage="1254" />
+
+    <!-- Re-publishing the same version must still replace the files -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="Daha yeni bir TroiaLens sürümü kurulu. Önce onu kaldırın." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/ufukt51/TroiaLensPlugin" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <!-- Notepad++ folder lookup; NPPDIR may come from the command line or the setup bundle -->
+    <Property Id="NPPDIR" Secure="yes" />
+    <Property Id="NPPSAVEDDIR" Secure="yes">
+      <RegistrySearch Id="NppSavedDirSearch" Root="HKLM" Key="SOFTWARE\TroiaLens" Name="NppDir" Type="directory" Bitness="always64" />
+    </Property>
+    <Property Id="NPPREGDIR" Secure="yes">
+      <RegistrySearch Id="NppRegDirSearch" Root="HKLM" Key="SOFTWARE\Notepad++" Type="directory" Bitness="always64" />
+    </Property>
+    <Property Id="NPP32DIR" Secure="yes">
+      <RegistrySearch Id="Npp32DirSearch" Root="HKLM" Key="SOFTWARE\Notepad++" Type="directory" Bitness="always32" />
+    </Property>
+    <SetProperty Id="NPPDIR" Action="SetNppDirFromSaved" Value="[NPPSAVEDDIR]" After="AppSearch" Sequence="both"
+                 Condition="NOT NPPDIR AND NPPSAVEDDIR" />
+    <SetProperty Id="NPPDIR" Action="SetNppDirFromNpp" Value="[NPPREGDIR]" After="SetNppDirFromSaved" Sequence="both"
+                 Condition="NOT NPPDIR AND NPPREGDIR" />
+
+    <PropertyRef Id="WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED" />
+
+    <Launch Condition="Installed OR NPPDIR OR NOT NPP32DIR"
+            Message="Yalnızca 32 bit Notepad++ bulundu. TroiaLens 64 bit Notepad++ ister. 64 bit Notepad++ kurup tekrar deneyin." />
+    <Launch Condition="Installed OR NPPDIR"
+            Message="Notepad++ (64 bit) bulunamadı. Notepad++'ı kurun ya da klasörünü belirtin: msiexec /i TroiaLens.msi NPPDIR=&quot;D:\Apps\Notepad++&quot;" />
+    <Launch Condition="Installed OR WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED"
+            Message="TroiaLens için .NET Framework 4.8 gerekir. TroiaLens-Setup ile kurun ya da önce .NET Framework 4.8'i kurun." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="NPPDIR" Name="Notepad++">
+        <Directory Id="NPPPLUGINSDIR" Name="plugins">
+          <Directory Id="INSTALLFOLDER" Name="TroiaLens" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="PluginFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PluginDir)\**" />
+    </ComponentGroup>
+
+    <!-- Remembers the Notepad++ folder for upgrades and uninstall -->
+    <Component Id="NppDirRegistry" Directory="INSTALLFOLDER" Bitness="always64">
+      <RegistryValue Root="HKLM" Key="SOFTWARE\TroiaLens" Name="NppDir" Type="string" Value="[NPPDIR]" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="Main" Title="TroiaLens">
+      <ComponentGroupRef Id="PluginFiles" />
+      <ComponentRef Id="NppDirRegistry" />
+    </Feature>
+
+  </Package>
+</Wix>

@@ -1,0 +1,34 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <!--
+    Single setup exe: .NET Framework 4.8, WebView2 Runtime and Node.js when missing, then the plugin MSI.
+    build.ps1 passes -p:ProductVersion=<version>.
+  -->
+  <PropertyGroup>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
+    <OutputType>Bundle</OutputType>
+    <OutputName>TroiaLens-Setup-$(ProductVersion)</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <WebView2Setup>$(MSBuildThisFileDirectory)obj\MicrosoftEdgeWebview2Setup.exe</WebView2Setup>
+    <DefineConstants>ProductVersion=$(ProductVersion);WebView2Setup=$(WebView2Setup)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Bal.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Netfx.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Package\TroiaLens.Package.wixproj" />
+    <ProjectReference Include="..\NodeSetup\NodeSetup.csproj" />
+  </ItemGroup>
+
+  <!-- WebView2 Evergreen bootstrapper (small online installer), fetched once and embedded -->
+  <Target Name="DownloadWebView2Setup" BeforeTargets="BeforeBuild" Condition="!Exists('$(WebView2Setup)')">
+    <DownloadFile SourceUrl="https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+                  DestinationFolder="$(MSBuildThisFileDirectory)obj"
+                  DestinationFileName="MicrosoftEdgeWebview2Setup.exe" />
+  </Target>
+
+</Project>

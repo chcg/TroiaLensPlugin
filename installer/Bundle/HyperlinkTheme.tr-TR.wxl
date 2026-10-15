@@ -1,0 +1,71 @@
+<!--
+  Turkish strings for the WixStdBA hyperlink theme.
+  Translated from WiX v6.0.2 src/ext/Bal/stdbas/Resources/HyperlinkTheme.wxl
+  (Copyright (c) .NET Foundation and contributors, Microsoft Reciprocal License).
+-->
+<WixLocalization Culture="tr-TR" Language="1055" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Caption" Value="[WixBundleName] Kurulumu" />
+  <String Id="Title" Value="[WixBundleName]" />
+  <String Id="CheckingForUpdatesLabel" Value="Güncellemeler denetleniyor" />
+  <String Id="UpdateButton" Value="[WixStdBAUpdateAvailable] sürümüne &amp;güncelle" />
+  <String Id="InstallHeader" Value="Hoş geldiniz" />
+  <String Id="InstallMessage" Value="[WixBundleName] Notepad++ eklentisi kurulacak. Eksikse .NET Framework 4.8, WebView2 ve Node.js da kurulur. Devam etmek için Kur'a, çıkmak için İptal'e tıklayın." />
+  <String Id="InstallMessageOptions" Value="[WixBundleName] Notepad++ eklentisi kurulacak. Devam etmek için Kur'a, ayarlar için Seçenekler'e, çıkmak için İptal'e tıklayın." />
+  <String Id="InstallVersion" Value="Sürüm [WixBundleVersion]" />
+  <String Id="ConfirmCancelMessage" Value="Kurulumu iptal etmek istediğinize emin misiniz?" />
+  <String Id="ExecuteUpgradeRelatedBundleMessage" Value="Önceki sürüm" />
+  <String Id="HelpHeader" Value="Kurulum Yardımı" />
+  <String Id="HelpText" Value="/install | /repair | /uninstall | /layout [klasör] - kurar, onarır, kaldırır ya da&#xA;   paketin tam bir kopyasını klasöre çıkarır. Varsayılan: kur.&#xA;&#xA;/passive | /quiet - soru sormadan küçük bir pencereyle ya da hiç pencere&#xA;   açmadan çalışır.&#xA;&#xA;/norestart   - yeniden başlatmaz.&#xA;/log log.txt - günlüğü bu dosyaya yazar. Varsayılan: %TEMP% klasörü.&#xA;&#xA;NPPDIR=&quot;klasör&quot; - Notepad++ klasörü (bulunamazsa).&#xA;InstallNode=0  - Node.js kurma." />
+  <String Id="HelpCloseButton" Value="&amp;Kapat" />
+  <String Id="InstallLicenseLinkText" Value="[WixBundleName] &lt;a href=&quot;#&quot;&gt;lisans koşulları&lt;/a&gt;." />
+  <String Id="InstallAcceptCheckbox" Value="Lisans koşullarını &amp;kabul ediyorum" />
+  <String Id="InstallOptionsButton" Value="&amp;Seçenekler" />
+  <String Id="InstallInstallButton" Value="&amp;Kur" />
+  <String Id="InstallCancelButton" Value="&amp;İptal" />
+  <String Id="OptionsHeader" Value="Kurulum Seçenekleri" />
+  <String Id="OptionsLocationLabel" Value="Kurulum yeri:" />
+  <String Id="OptionsBrowseButton" Value="&amp;Gözat" />
+  <String Id="OptionsOkButton" Value="&amp;Tamam" />
+  <String Id="OptionsCancelButton" Value="&amp;İptal" />
+  <String Id="ProgressHeader" Value="Kuruluyor" />
+  <String Id="ProgressLabel" Value="İşleniyor:" />
+  <String Id="OverallProgressPackageText" Value="Hazırlanıyor..." />
+  <String Id="ProgressCancelButton" Value="&amp;İptal" />
+  <String Id="ModifyHeader" Value="Kurulumu Değiştir" />
+  <String Id="ModifyRepairButton" Value="&amp;Onar" />
+  <String Id="ModifyUninstallButton" Value="&amp;Kaldır" />
+  <String Id="ModifyCancelButton" Value="&amp;İptal" />
+  <String Id="SuccessHeader" Value="Kurulum Tamamlandı" />
+  <String Id="SuccessCacheHeader" Value="Önbelleğe Alma Tamamlandı" />
+  <String Id="SuccessInstallHeader" Value="Kurulum Tamamlandı" />
+  <String Id="SuccessLayoutHeader" Value="Kopyalama Tamamlandı" />
+  <String Id="SuccessModifyHeader" Value="Değişiklik Tamamlandı" />
+  <String Id="SuccessRepairHeader" Value="Onarım Tamamlandı" />
+  <String Id="SuccessUninstallHeader" Value="Kaldırma Tamamlandı" />
+  <String Id="SuccessUnsafeUninstallHeader" Value="Kaldırma Tamamlandı" />
+  <String Id="SuccessLaunchButton" Value="&amp;Başlat" />
+  <String Id="SuccessRestartText" Value="Kullanmaya başlamadan önce bilgisayarı yeniden başlatmanız gerekiyor." />
+  <String Id="SuccessUninstallRestartText" Value="Kaldırmayı tamamlamak için bilgisayarı yeniden başlatmanız gerekiyor." />
+  <String Id="SuccessRestartButton" Value="&amp;Yeniden başlat" />
+  <String Id="SuccessCloseButton" Value="&amp;Kapat" />
+  <String Id="FailureHeader" Value="Kurulum Başarısız" />
+  <String Id="FailureCacheHeader" Value="Önbelleğe Alma Başarısız" />
+  <String Id="FailureInstallHeader" Value="Kurulum Başarısız" />
+  <String Id="FailureLayoutHeader" Value="Kopyalama Başarısız" />
+  <String Id="FailureModifyHeader" Value="Değişiklik Başarısız" />
+  <String Id="FailureRepairHeader" Value="Onarım Başarısız" />
+  <String Id="FailureUninstallHeader" Value="Kaldırma Başarısız" />
+  <String Id="FailureUnsafeUninstallHeader" Value="Kaldırma Başarısız" />
+  <String Id="FailureHyperlinkLogText" Value="Kurulum tamamlanamadı. Sorunu giderip yeniden deneyin. Ayrıntılar için &lt;a href=&quot;#&quot;&gt;günlük dosyasına&lt;/a&gt; bakın." />
+  <String Id="FailureRestartText" Value="Geri almayı tamamlamak için bilgisayarı yeniden başlatmanız gerekiyor." />
+  <String Id="FailureRestartButton" Value="&amp;Yeniden başlat" />
+  <String Id="FailureCloseButton" Value="&amp;Kapat" />
+  <String Id="FilesInUseTitle" Value="Kullanımdaki Dosyalar" />
+  <String Id="FilesInUseLabel" Value="Güncellenecek dosyaları şu uygulamalar kullanıyor:" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="&amp;Uygulamaları kapat." />
+  <String Id="FilesInUseCloseRadioButton" Value="&amp;Uygulamaları kapat ve yeniden açmayı dene." />
+  <String Id="FilesInUseDontCloseRadioButton" Value="Uygulamaları &amp;kapatma. Yeniden başlatma gerekecek." />
+  <String Id="FilesInUseRetryButton" Value="&amp;Yeniden dene" />
+  <String Id="FilesInUseIgnoreButton" Value="&amp;Yoksay" />
+  <String Id="FilesInUseExitButton" Value="Çı&amp;k" />
+</WixLocalization>

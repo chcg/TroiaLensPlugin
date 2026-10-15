@@ -1,8 +1,8 @@
 ﻿<#
-  Builds the plugin and publishes out\TroiaLens-<version>-x64.zip to the GitHub Releases page of this repo.
+  Builds the plugin and publishes the zip, the MSI and the setup exe from out\ to the GitHub Releases page of this repo.
 
   The version comes from <Version> in src\TroiaLens\TroiaLens.csproj; the release tag is v<version>.
-  If that release already exists, its zip is replaced and the tag is moved to the current commit.
+  If that release already exists, its files are replaced and the tag is moved to the current commit.
 
   Needs the GitHub CLI (gh), signed in with "gh auth login". The working tree must be clean and pushed,
   so the zip matches a commit on GitHub.
@@ -34,20 +34,22 @@ if (-not (git branch -r --contains $head | Where-Object { $_.Trim() -eq "origin/
 $dll = Join-Path $root 'out\TroiaLens\TroiaLens.dll'
 $version = (Get-Item $dll).VersionInfo.ProductVersion -replace '\+.*$', ''
 $zip = Join-Path $root "out\TroiaLens-$version-x64.zip"
+$msiVersion = $version -replace '-.*$', ''
+$assets = @($zip, (Join-Path $root "out\TroiaLens-$msiVersion-x64.msi"), (Join-Path $root "out\TroiaLens-Setup-$msiVersion.exe"))
 $tag = "v$version"
-if (-not (Test-Path $zip)) { throw "Zip bulunamadı: $zip" }
+foreach ($a in $assets) { if (-not (Test-Path $a)) { throw "Dosya bulunamadı: $a" } }
 
 if (Test-Gh 'release', 'view', $tag) {
-    $answer = Read-Host "$tag zaten yayında. Zip değiştirilsin ve etiket bu commit'e taşınsın mı? (e/h)"
+    $answer = Read-Host "$tag zaten yayında. Dosyalar değiştirilsin ve etiket bu commit'e taşınsın mı? (e/h)"
     if ($answer -notmatch '^[eEyY]') { Write-Host 'Vazgeçildi.'; exit 0 }
     git tag -f $tag $head
     git push -f origin "refs/tags/$tag"
     if ($LASTEXITCODE) { throw 'Etiket gönderilemedi' }
-    gh release upload $tag $zip --clobber
-    if ($LASTEXITCODE) { throw 'Zip yüklenemedi' }
+    gh release upload $tag @assets --clobber
+    if ($LASTEXITCODE) { throw 'Dosyalar yüklenemedi' }
 }
 else {
-    gh release create $tag $zip --target $head --title "TroiaLens $version" --generate-notes
+    gh release create $tag @assets --target $head --title "TroiaLens $version" --generate-notes
     if ($LASTEXITCODE) { throw 'Release oluşturulamadı' }
     git fetch --quiet --tags origin
 }

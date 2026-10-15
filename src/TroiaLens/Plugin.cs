@@ -100,21 +100,20 @@ namespace TroiaLens
 
         private static void OnBufferActivated(IntPtr buffer)
         {
-            string path = CurrentPath();
-            bool traceExt = _settings.IsTraceExtension(path);
+            bool isTrace = IsTraceDocument();
 
-            if (traceExt && _settings.AutoOpen && !_panelVisible && !Dismissed.Contains(buffer))
+            if (isTrace && _settings.AutoOpen && !_panelVisible && !Dismissed.Contains(buffer))
             {
                 ShowPanel();
                 _autoOpened = true;
                 return;
             }
-            if (!traceExt && _autoOpened && _panelVisible)
+            if (!isTrace && _autoOpened && _panelVisible)
             {
                 HidePanel();
                 return;
             }
-            if (_panelVisible && (traceExt || _settings.AnalyzeOnTabSwitch)) Analyze(force: false);
+            if (_panelVisible && (isTrace || _settings.AnalyzeOnTabSwitch)) Analyze(force: false);
         }
 
         // ---- Menu commands ----
@@ -123,7 +122,7 @@ namespace TroiaLens
         {
             if (_panelVisible)
             {
-                if (_settings.IsTraceExtension(CurrentPath())) Dismissed.Add(CurrentBufferId());
+                if (IsTraceDocument()) Dismissed.Add(CurrentBufferId());
                 HidePanel();
             }
             else
@@ -213,7 +212,7 @@ namespace TroiaLens
         /// <summary>The user closed the panel with its own close button.</summary>
         public static void OnPanelClosed()
         {
-            if (_settings.IsTraceExtension(CurrentPath())) Dismissed.Add(CurrentBufferId());
+            if (IsTraceDocument()) Dismissed.Add(CurrentBufferId());
             ClearMarks(pick: true);
             _panelVisible = false;
             _autoOpened = false;
@@ -290,6 +289,21 @@ namespace TroiaLens
             // Non-UTF-8 documents use the system ANSI code page (windows-1254 on Turkish Windows)
             byte[] text = utf8 ? bytes : Encoding.UTF8.GetBytes(Encoding.Default.GetString(bytes));
             _panel.ShowTrace(name, text);
+        }
+
+        /// <summary>
+        /// Active document has a trace extension, or its beginning looks like a trace (Canias also saves traces
+        /// as .txt). Reads only the first 64 KB, so it is cheap on every tab switch.
+        /// </summary>
+        private static bool IsTraceDocument()
+        {
+            if (_settings.IsTraceExtension(CurrentPath())) return true;
+            IntPtr sci = CurrentScintilla();
+            int length = (int)Math.Min(Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64(), 1 << 16);
+            if (length <= 0) return false;
+            var head = new byte[length];
+            Marshal.Copy(Sci(sci, SciMsg.SCI_GETRANGEPOINTER, IntPtr.Zero, (IntPtr)length), head, 0, length);
+            return LooksLikeTrace(head, Sci(sci, SciMsg.SCI_GETCODEPAGE).ToInt32() == SciMsg.SC_CP_UTF8);
         }
 
         private static readonly byte[] TraceHeader = Encoding.ASCII.GetBytes("TROIA CODE EXECUTION TRACE");

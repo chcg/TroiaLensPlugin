@@ -19,7 +19,8 @@ namespace TroiaLens.Npp
             AppDomain.CurrentDomain.AssemblyResolve += (sender, e) =>
             {
                 string path = Path.Combine(dir, new AssemblyName(e.Name).Name + ".dll");
-                return File.Exists(path) ? Assembly.LoadFrom(path) : null;
+                // UnsafeLoadFrom: zip'ten çıkan, "engellenmiş" (Mark of the Web) DLL'lerde NotSupportedException atmaz.
+                return File.Exists(path) ? Assembly.UnsafeLoadFrom(path) : null;
             };
         }
 

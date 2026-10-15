@@ -96,6 +96,10 @@ Eklentiyi iki yoldan kurabilirsiniz: hazır zip dosyasını indirerek ya da kayn
    (genellikle `C:\Program Files\Notepad++\plugins`).
 4. Notepad++'ı yeniden açın.
 
+Eklenti açılırken "Bu bütünleştirilmiş kod ... uzak kaynaktan yüklenemiyor" benzeri bir hata verirse, DLL'ler
+Windows tarafından engellenmiştir. `TroiaLens` klasöründe şu komutu çalıştırıp Notepad++'ı yeniden açın:
+`Get-ChildItem . -Recurse | Unblock-File`
+
 **Kaynaktan derlemek için:**
 
 ```powershell

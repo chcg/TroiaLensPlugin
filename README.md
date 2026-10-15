@@ -6,76 +6,136 @@
 ![Windows](https://img.shields.io/badge/Windows-10_%7C_11-0078D6?logo=windows&logoColor=white)
 ![React](https://img.shields.io/badge/UI-React_19-61DAFB?logo=react&logoColor=black)
 
-Canias ERP **TROIA CODE EXECUTION TRACE** dosyalarını Notepad++ içinde, sağa yerleşen bir panelde analiz eder.
+Canias ERP'nin **TROIA CODE EXECUTION TRACE** dosyalarını Notepad++ içinde analiz eden bir eklenti.
+Trace dosyasını açtığınızda sağ tarafta bir panel açılır. Panelde şu sekmeler vardır: Özet, Çağrı ağacı, SQL,
+Tekrarlar, Mesajlar ve Hata/Uyarı. Paneldeki bir satıra tıkladığınızda editör o satıra gider.
 
-Analiz arayüzü ayrı bir repodur: **TroiaLens web** uygulaması. Bu repoya `web/` klasöründe git submodule olarak bağlıdır.
-Parser, analiz kuralları, trace formatı ve gömülü mod mesajları web reposunun `README.md` dosyasında anlatılır.
-Bu repo yalnızca Notepad++ tarafını içerir: C# eklenti, paketleme ve kurulum.
+Paneldeki ekranlar [TroiaLens web uygulamasıyla](https://github.com/ufukt51/TroiaLens) aynıdır.
 
 ## Ekran görüntüleri
 
-Görüntüler web reposundaki uydurma örnek trace ile alındı.
+Görüntülerdeki veriler örnektir, gerçek değildir.
 
 ![Özet paneli](docs/screenshots/npp-light-overview.png)
 
 | | |
 |---|---|
-| ![Satır detayı](docs/screenshots/npp-light-detail.png) | ![Koyu mod, çağrı ağacı](docs/screenshots/npp-dark-tree.png) |
-| Satır ayrıntısı alt bölmede; editör aynı satırda (Ln 45), metot bloğu sarı | Koyu mod; seçilen satırın bloğu editörde, çift tıklanan kelime pembe |
-| ![Koyu mod, özet](docs/screenshots/npp-dark-overview.png) | |
-| Koyu mod, özet | |
+| ![Satır ayrıntısı](docs/screenshots/npp-light-detail.png) | ![Koyu tema, çağrı ağacı](docs/screenshots/npp-dark-tree.png) |
+| Seçilen satırın ayrıntısı altta açılır; editör aynı satıra gider ve metodu sarıyla işaretler. | Koyu tema. Çift tıklanan kelime editörde pembeyle işaretlenir. |
+| ![Koyu tema, özet](docs/screenshots/npp-dark-overview.png) | |
+| Koyu tema, özet | |
 
-## Davranış
+## Nasıl çalışır?
 
-- `.trace` uzantılı bir dosya aktif olunca panel kendiliğinden açılır ve analiz başlar.
-- Trace olmayan bir sekmeye geçince otomatik açılan panel gizlenir. Paneli menüden elle açtıysanız açık kalır.
-  Bu durumda trace olmayan dosyada "Bu bir Troia trace dosyası değil" mesajı görünür.
-- Panelde bir satıra tıklayınca editör imleci o satıra gider. Detaydaki **Editörde göster** odağı da editöre verir.
-- Çağrı ağacında seçilen satırın metot bloğu editörde açık sarıyla, satırın kendisi koyu sarıyla işaretlenir.
-  Editörde bir kelimeye çift tıklayınca dosyadaki tüm geçişleri ayrı bir renkle işaretlenir.
-- Satır ayrıntısı varsayılan olarak alt bölmede açılır. Başlığındaki düğmeyle ya da menüden sağda kayan panele
-  geçilebilir; seçim kaydedilir.
-- Dosya kaydedilince yeniden analiz edilir. Notepad++ koyu modundaysa panel de koyu açılır.
-- Bir trace sekmesinde paneli kapatırsanız, o sekme için bir daha otomatik açılmaz.
-- Notepad++ kapanırken panel açıksa, bir sonraki açılışta Notepad++ paneli geri getirir.
+- Bir trace dosyasına geçtiğinizde panel kendiliğinden açılır ve analiz başlar. Uzantı `.trace` ya da `.txt`
+  olabilir; `.txt` dosyalarında içeriğe bakılır, sıradan metin dosyalarında panel açılmaz.
+- Trace olmayan bir dosyaya geçince panel gizlenir. Paneli menüden kendiniz açtıysanız açık kalır ve
+  "Bu bir Troia trace dosyası değil" uyarısı görünür.
+- Paneldeki bir satıra tıkladığınızda editör o satıra gider. Editörde imleci başka bir satıra taşıdığınızda da
+  panel o satırı seçer.
+- Ayrıntı başlığındaki **Editörde göster** düğmesi satıra gider ve imleci editöre taşır.
+- Çağrı ağacında bir satır seçtiğinizde, satırın ait olduğu metot editörde açık sarıyla, satırın kendisi koyu sarıyla
+  işaretlenir.
+- Editörde bir kelimeye çift tıkladığınızda, kelime dosyada geçtiği her yerde pembeyle işaretlenir. Aynı kelimeye
+  yeniden çift tıklarsanız işaret kalkar.
+- Satır ayrıntısı alt bölmede açılır. Ayrıntı başlığındaki düğmeyle ya da menüden sağdan kayan panele geçebilirsiniz;
+  tercihiniz hatırlanır.
+- Dosyayı kaydettiğinizde analiz yenilenir.
+- Notepad++ koyu temadaysa panel de koyu açılır.
+- Bir trace dosyasında paneli kapatırsanız, Notepad++'ı kapatana kadar o dosyada panel kendiliğinden açılmaz.
+  Menüden yeniden açabilirsiniz.
+- Notepad++'ı panel açıkken kapatırsanız, bir sonraki açılışta panel yine açık gelir.
 
-Menü: **Eklentiler > TroiaLens**
+## Menü
 
-| Komut | |
+**Eklentiler > TroiaLens**
+
+| Komut | Ne yapar? |
 |---|---|
-| TroiaLens paneli | Paneli göster / gizle |
-| Aktif dosyayı analiz et | Uzantıya bakmadan analiz eder |
-| Trace dosyalarında paneli otomatik aç | Açık / kapalı |
-| Sekme değişince yeniden analiz et | Panel açıkken her sekme değişiminde analiz |
-| Satır ayrıntısını sağda kayan panelde aç | Kapalıysa ayrıntı alt bölmede açılır |
+| TroiaLens paneli | Paneli açar veya kapatır |
+| Aktif dosyayı analiz et | Paneli açar ve açık dosyayı yeniden analiz eder. Uzantısı farklı olsa da içeriği trace ise çalışır. |
+| Trace dosyalarında paneli otomatik aç | Trace dosyasına geçince panelin kendiliğinden açılıp açılmayacağını belirler |
+| Sekme değişince yeniden analiz et | Panel açıkken her sekme değişiminde analizi yeniler |
+| Satır ayrıntısını sağda kayan panelde aç | Satır ayrıntısını alt bölme yerine sağdan kayan panelde gösterir |
+| Hakkında | Sürümü, trace uzantılarını ve ayar dosyasının yerini gösterir |
 
-Ayarlar `plugins\config\TroiaLens.ini` içinde:
+## Ayarlar
 
-| Anahtar | Varsayılan | |
+Ayarlar Notepad++'ın ayar klasöründeki `plugins\config\TroiaLens.ini` dosyasında saklanır. Tam yolu menüdeki
+**Hakkında** penceresinde görebilirsiniz. Çoğu ayarı menüden değiştirebilirsiniz. Dosyayı elle düzenleyecekseniz
+önce Notepad++'ı kapatın; yoksa değişiklikleriniz kapanışta silinir.
+
+| Ayar | Varsayılan | Açıklama |
 |---|---|---|
-| `AutoOpen` | `1` | Trace uzantılı dosyada paneli otomatik aç |
-| `AnalyzeOnTabSwitch` | `1` | Panel açıkken her sekme değişiminde analiz et |
-| `DetailSlideOver` | `0` | `1` ise satır ayrıntısı sağda kayan panelde açılır |
-| `Extensions` | `.trace` | Trace sayılan uzantılar, `;` ile ayrılır |
-| `DevTools` | `0` | `1` ise panelde F12 geliştirici araçları açılır |
+| `AutoOpen` | `1` | Trace dosyasına geçince paneli kendiliğinden aç |
+| `AnalyzeOnTabSwitch` | `1` | Panel açıkken her sekme değişiminde analizi yenile |
+| `DetailSlideOver` | `0` | `1` ise satır ayrıntısı sağdan kayan panelde açılır |
+| `Extensions` | `.trace` | Trace sayılan uzantılar; birden fazlaysa `;` ile ayrılır |
 
-Uzantı dışında, ilk satırı `TROIA CODE EXECUTION TRACE` olan ya da `▎` içeren dosyalar da trace sayılır.
+Uzantısı listede olmasa bile `TROIA CODE EXECUTION TRACE` satırıyla başlayan ya da `▎` karakteri içeren dosyalar
+da trace olarak tanınır. Canias'ın `.txt` olarak kaydettiği trace dosyaları bu sayede kendiliğinden açılır.
+`Extensions` ayarına `.txt` eklemeyin; eklerseniz panel her `.txt` dosyasında açılır.
+
+Geliştiriciler için: `DevTools=1` ayarı panelde F12 ile geliştirici araçlarını açar.
 
 ## Gereksinimler
 
-- Notepad++ x64 (8.4+; 8.9.8 ile test edildi)
+- Notepad++ 64 bit, 8.4 veya daha yeni bir sürüm
 - Microsoft Edge WebView2 Runtime (Windows 11'de hazır gelir)
-- Derlemek için: .NET SDK, .NET Framework 4.8 targeting pack ve SDK araçları (`ildasm.exe`), Node.js 22.12+
+- Derlemek için: .NET SDK, .NET Framework 4.8 geliştirici paketi, `ildasm.exe` ve Node.js 22.12 veya daha yeni bir sürüm
 
-## Kaynağı alma
+## Kurulum
+
+Eklentiyi iki yoldan kurabilirsiniz: hazır zip dosyasını indirerek ya da kaynak koddan derleyerek.
+
+**Hazır zip ile:**
+
+1. [Releases](https://github.com/ufukt51/TroiaLensPlugin/releases/latest) sayfasından `TroiaLens-<sürüm>-x64.zip` dosyasını indirin.
+2. Notepad++'ı kapatın.
+3. Zip içindeki `TroiaLens` klasörünü Notepad++ kurulum klasöründeki `plugins` klasörüne kopyalayın
+   (genellikle `C:\Program Files\Notepad++\plugins`).
+4. Notepad++'ı yeniden açın.
+
+**Kaynaktan derlemek için:**
 
 ```powershell
-git clone --recurse-submodules <bu repo>
-# ya da klonladıktan sonra:
+git clone --recurse-submodules https://github.com/ufukt51/TroiaLensPlugin.git
+cd TroiaLensPlugin
+.\build.ps1      # web arayüzünü ve eklentiyi derler
+.\install.ps1    # eklentiyi Notepad++'a kurar
+```
+
+- Kurmadan önce Notepad++'ı kapatın. Gerekirse yönetici izni istenir.
+- Notepad++ başka bir klasördeyse (örneğin taşınabilir sürüm): `.\install.ps1 -NppDir D:\Apps\Npp`
+- Derlenen eklenti `out\TroiaLens\` klasörüne, paylaşmaya hazır zip dosyası da `out\` klasörüne yazılır.
+- Web arayüzünde yaptığınız değişikliklerin Notepad++'ta görünmesi için `build.ps1` ve `install.ps1` komutlarını
+  yeniden çalıştırın. Yalnızca `npm run build` yetmez.
+- Web arayüzü değişmediyse `.\build.ps1 -SkipWeb` ile yalnızca eklentiyi derleyebilirsiniz.
+
+## Yeni sürüm yayınlama
+
+Zip dosyası Releases sayfasına VS Code'tan yüklenir. İlk kullanımdan önce [GitHub CLI](https://cli.github.com)
+kurun ve `gh auth login` ile oturum açın.
+
+1. Sürümü artıracaksanız `src\TroiaLens\TroiaLens.csproj` içindeki `<Version>` değerini değiştirin.
+2. Değişiklikleri commit edip push edin.
+3. VS Code'ta **Ctrl+Shift+P > Tasks: Run Task > TroiaLens: Release yayınla** komutunu çalıştırın.
+
+Görev eklentiyi derler ve zip dosyasını `v<sürüm>` adıyla Releases sayfasına yükler. Bu sürüm daha önce
+yayınlandıysa onay ister; onaylarsanız eski zip'in yerine yenisini koyar.
+
+## Web arayüzünü güncelleme
+
+Web arayüzü bu repoya `web/` klasöründe alt modül (submodule) olarak bağlıdır. Bu klasör ayrı bir git reposudur
+([ufukt51/TroiaLens](https://github.com/ufukt51/TroiaLens)) ve kendi geçmişi vardır.
+
+Klonladıktan sonra `web/` klasörü boşsa:
+
+```powershell
 git submodule update --init
 ```
 
-Web arayüzünün yeni sürümünü almak için:
+Web arayüzünün en son sürümünü almak için:
 
 ```powershell
 git submodule update --remote web
@@ -83,137 +143,16 @@ git add web
 git commit -m "web: güncelle"
 ```
 
-`web/` klasörü web reposunun ([ufukt51/TroiaLens](https://github.com/ufukt51/TroiaLens)) kendisidir: kendi git
-geçmişi ve remote'u vardır. Web arayüzünü doğrudan burada geliştirebilirsiniz:
+Web arayüzünü doğrudan bu klasörde geliştirmek için:
 
 ```powershell
 cd web
-git switch main                  # submodule ilk açılışta belirli bir commit'te durur; çalışmadan önce dala geçin
-# ... değişiklik, npm test ...
+git switch main          # alt modül ilk açılışta bir dala bağlı değildir; önce main dalına geçin
+# değişiklikleri yapın, npm test ile kontrol edin
 git commit -am "..."
-git push                         # web reposuna (public)
+git push                 # web reposuna gönderir (herkese açık)
 cd ..
-git add web                      # eklenti reposu web'in bu sürümünü kullansın
+git add web              # eklenti, web arayüzünün bu sürümünü kullansın
 git commit -m "web: güncelle"
-git push                         # eklenti reposuna (private)
+git push                 # eklenti reposuna gönderir (özel)
 ```
-
-## Derleme ve kurulum
-
-```powershell
-.\build.ps1          # web + eklenti -> out\TroiaLens\ ve out\TroiaLens-<sürüm>-x64.zip
-.\build.ps1 -SkipWeb # web\dist hazırsa sadece eklenti
-.\install.ps1        # Notepad++'ı kapatın; gerekirse yönetici izni ister
-.\install.ps1 -NppDir D:\Apps\Npp   # başka (ör. taşınabilir) kurulum
-```
-
-Kurulum klasörü:
-
-```
-Notepad++\plugins\TroiaLens\
-  TroiaLens.dll
-  Microsoft.Web.WebView2.Core.dll, Microsoft.Web.WebView2.WinForms.dll, WebView2Loader.dll
-  web\            (web\dist)
-```
-
-## Mimari
-
-```
-Notepad++ ──(Scintilla mesajları)──> TroiaLens.dll (C#, .NET Framework 4.8, x64)
-                                       └─ Dock panel (WinForms) ─> WebView2 ─> https://troialens.local/index.html
-                         <──── gotoLine ────────────── window.chrome.webview.postMessage
-                         ───── loadUrl / theme ──────> PostWebMessageAsJson
-```
-
-Neden bu yol: parser, analiz ve tüm görünümler web uygulamasında hazır ve test edilmiş. Eklenti yalnızca ince bir
-köprüdür; web tarafındaki her iyileştirme `build.ps1` ile eklentiye de geçer.
-
-```
-src/TroiaLens/
-  Npp/Exports.cs          Notepad++'ın çağırdığı 6 native export (isUnicode, setInfo, getFuncsArray, messageProc, getName, beNotified)
-  Npp/Interop.cs          NPPM_ / SCI_ / NPPN_ sabitleri, NppData, tTbData, Win32
-  Npp/FuncItems.cs        Menü komutları için native FuncItem dizisi
-  Plugin.cs               Menü, bildirimler, aktif metni okuma, trace tespiti, satıra gitme
-  PanelForm.cs            Dock panel + WebView2, sayfa ile mesajlaşma
-  Settings.cs             TroiaLens.ini
-tools/DllExport.ps1       Derleme sonrası native export ekler
-build.ps1, install.ps1    Paketleme ve kurulum
-web/                      Submodule: TroiaLens web arayüzü
-```
-
-### Native export'lar
-
-Notepad++ eklentileri native DLL export'larıyla çağrılır. `[DllExport]` ile işaretli statik metotlar derlemeden sonra
-dışa açılır: `tools/DllExport.ps1` derlenmiş assembly'yi `ildasm` ile IL'e çevirir, öznitelik satırını
-`.export [n] as <ad>` ile değiştirir, `.corflags` değerini sıfırlar ve `ilasm /x64` ile yeniden derler.
-`TroiaLens.csproj` içindeki `ExportNativeEntryPoints` hedefi bunu `CoreCompile` sonrasında, assembly değiştiyse çalıştırır.
-
-`Exports` sınıfı WebView2 tiplerine doğrudan dokunmaz: statik kurucusu önce bağımlılıkları eklenti klasöründen
-yükleyen bir `AssemblyResolve` işleyicisi kaydeder.
-
-### Panel ve WebView2
-
-- Panel `NPPM_DMMREGASDCKDLG` ile kaydedilir. `dlgID` panel komutunun indeksidir; Notepad++ açılışta paneli bu
-  komutla geri getirir. Panelin kendi kapatma düğmesi `WM_NOTIFY / DMN_CLOSE` ile bildirilir.
-- WebView2 kullanıcı verisi: `plugins\config\TroiaLens\WebView2` (Notepad++ kurulum klasörü yazılamaz olabilir).
-- Arayüz `SetVirtualHostNameToFolderMapping("troialens.local", <eklenti>\web)` ile açılır. `file://` kullanılmaz:
-  modül Web Worker `file://` üzerinden yüklenmez.
-- Trace metni diske yazılmaz. Sayfa `https://troialens-data.local/<token>/<ad>` adresini `fetch` eder; eklenti bu
-  isteği `WebResourceRequested` ile bellekten yanıtlar. Token her analizde değişir.
-- `WebView2Loader.dll` eklenti klasöründen yüklenir (`CoreWebView2Environment.SetLoaderDllFolderPath`).
-- Tema: `NPPM_ISDARKMODEENABLED` sayfaya `?theme=` ve `theme` mesajıyla geçer; `NPPN_DARKMODECHANGED` ile güncellenir.
-
-### Aktif metni okuma ve satıra gitme
-
-- Aktif editör `NPPM_GETCURRENTSCINTILLA`, metin `SCI_GETCHARACTERPOINTER` + `SCI_GETLENGTH` ile byte olarak okunur.
-- `SCI_GETCODEPAGE` 65001 ise metin UTF-8'dir; değilse sistem ANSI kod sayfası (Türkçe Windows'ta 1254) ile
-  çözülüp UTF-8'e çevrilir.
-- Sayfanın gönderdiği satır, parser'ın saydığı satırdır (`\r?\n` ile bölünmüş). Scintilla tek başına CR'yi de satır
-  sonu sayar. Parser bu CR'lerin yerini tutar; panel "Dosya satırı" olarak Notepad++'ın satır numarasını gösterir.
-  Eklenti her analizde `\n` konumlarını tutar, satırı byte konumuna çevirir ve `SCI_GOTOPOS` kullanır. İmleç her
-  zaman doğru satıra gider.
-- Aynı tampon aynı uzunluktaysa sekme değişiminde yeniden analiz edilmez; panel durumu (sekme, açık detay) korunur.
-
-### Host ↔ sayfa mesajları
-
-| Yön | Mesaj |
-|---|---|
-| sayfa → host | `{ type: 'ready' }`, `{ type: 'gotoLine', line, focus }`, `{ type: 'mark', from, to, line, lineEnd, word }`, `{ type: 'clearMarks' }`, `{ type: 'reload' }`, `{ type: 'setPrefs', detailSlideOver }` |
-| host → sayfa | `{ type: 'theme', dark }`, `{ type: 'prefs', detailSlideOver }`, `{ type: 'loadUrl', name, url }`, `{ type: 'notTrace', name }`, `{ type: 'caret', line }` |
-
-Host, metni ve temayı ancak `ready` geldikten sonra gönderir; sayfa yeniden yüklenirse son durumu tekrar yollar.
-
-## Test
-
-### Web arayüzü
-
-Web reposunda `npm test` (parser regresyon testi) ve `npm run dev` ile tarayıcıda kontrol. Ayrıntılar web reposunun README'sinde.
-
-### Eklenti
-
-Gerçek kurulumu bozmadan denemek için:
-
-1. Notepad++ klasörünü (plugins hariç) geçici bir yere kopyalayın, içine boş `doLocalConf.xml` koyun (taşınabilir mod).
-2. `.\install.ps1 -NppDir <klasör>`
-3. `notepad++.exe -multiInst -nosession <dosya.trace>`
-
-Paneli Playwright veya DevTools ile incelemek için Notepad++'ı
-`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` ortam değişkeniyle başlatın ve
-`chromium.connectOverCDP('http://127.0.0.1:9333')` ile bağlanın.
-
-Kontrol listesi:
-
-- Büyük (4 MB, 140 bin satır) bir trace açıkken panel analizi 2 saniye içinde gösteriyor.
-- Panelde bir SQL satırına tıklayınca editör doğru satıra gidiyor.
-- Sekme değişince panel yeni dosyayı gösteriyor; trace olmayan dosyada otomatik açılan panel gizleniyor,
-  elle açılan panelde "Bu bir Troia trace dosyası değil" mesajı çıkıyor.
-- Notepad++ koyu modundayken panel koyu açılıyor.
-- Panel kapatılıp açılınca ve Notepad++ yeniden başlatılınca hata çıkmıyor.
-- İnternet bağlantısı olmadan çalışıyor (tüm dosyalar yerel).
-
-## İleride
-
-- Trace dosyaları için UDL (User Defined Language): `[N ms]` süreleri, `SELECT` / `IF` / `LOOP` anahtar kelimeleri,
-  scope satırları farklı renklerde.
-- Function List desteği: scope açılış satırlarını (`▎`) listeleyen bir parser tanımı.
-- Panelde odak varken Notepad++ kısayollarının (Ctrl+C vb.) sayfaya ulaştığı doğrulanmadı.

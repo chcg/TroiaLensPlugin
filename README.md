@@ -156,3 +156,7 @@ git add web              # eklenti, web arayüzünün bu sürümünü kullansın
 git commit -m "web: güncelle"
 git push                 # eklenti reposuna gönderir (özel)
 ```
+
+## Lisans
+
+[MIT](LICENSE)

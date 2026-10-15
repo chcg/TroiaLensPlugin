@@ -38,7 +38,8 @@
           AfterTargets="CoreCompile"
           BeforeTargets="CopyFilesToOutputDirectory"
           Inputs="@(IntermediateAssembly)"
-          Outputs="@(IntermediateAssembly->'%(FullPath).exports')">
+          Outputs="@(IntermediateAssembly->'%(FullPath).exports')"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true' and Exists('@(IntermediateAssembly)')">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\tools\DllExport.ps1&quot; -Assembly &quot;@(IntermediateAssembly->'%(FullPath)')&quot;" />
     <Touch Files="@(IntermediateAssembly->'%(FullPath).exports')" AlwaysCreate="true" />
   </Target>

@@ -23,6 +23,7 @@ samples/
 
 
 # --- Claude Code (yerel) ---
+.claudeignore
 .claude/
 CLAUDE.md
 

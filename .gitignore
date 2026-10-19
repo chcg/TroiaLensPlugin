@@ -25,3 +25,5 @@ samples/
 # --- Claude Code (yerel) ---
 .claude/
 CLAUDE.md
+
+handoff.md

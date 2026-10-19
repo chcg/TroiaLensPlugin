@@ -32,7 +32,7 @@ namespace TroiaLens
         private static IntPtr _docBuffer;
         private static string _docPath;
         private static long _docLength = -1;
-        private static int[] _lineStarts;
+        private static long[] _lineStarts;
 
         // Trace line of the editor caret, last reported to or moved by the page; unchanged lines are not reported again
         private static int _caretLine = -1;
@@ -47,6 +47,12 @@ namespace TroiaLens
         private static bool? _marksDark;
         // Span currently drawn ("from:to:word"); moving within one method only moves the row mark
         private static string _markedSpan;
+        // Editor lines of that span and of the part of it carrying marks: a long span is marked only around the
+        // view, and the marks move along as the view scrolls (a whole 800K-line method would take seconds)
+        private static long _spanFirst = -1, _spanLast = -1, _drawnFirst = -1, _drawnLast = -1;
+        private static string _spanWord;
+        private const int SpanWhole = 50000;
+        private const int SpanReach = 5000;
         private const int Amber = 0x0B9EF5; // #F59E0B as Scintilla BGR
         private const int LightYellow = 0x9DF5FF; // #FFF59D
         private const int Teal = 0xA9BB27; // #27BBA9
@@ -59,6 +65,7 @@ namespace TroiaLens
             _configDir = GetPluginsConfigDir();
             _settings = new Settings(_configDir);
             _settings.Load();
+            CleanTemp();
 
             _cmdPanel = Funcs.Add("TroiaLens paneli", () => Safe(TogglePanel));
             Funcs.Add("Aktif dosyayı analiz et", () => Safe(AnalyzeCommand));
@@ -269,26 +276,107 @@ namespace TroiaLens
             _docLength = length;
             _lineStarts = null;
 
-            if (length > int.MaxValue / 2)
-            {
-                _panel.ShowNotTrace(name);
-                return;
-            }
-
-            var bytes = new byte[length];
-            if (length > 0) Marshal.Copy(Sci(sci, SciMsg.SCI_GETCHARACTERPOINTER), bytes, 0, (int)length);
+            // The document is never copied whole into memory: a trace may be as large as Notepad++ can open.
+            // The character pointer stays valid until the document changes, which cannot happen during this call.
+            IntPtr text = Sci(sci, SciMsg.SCI_GETCHARACTERPOINTER);
             bool utf8 = Sci(sci, SciMsg.SCI_GETCODEPAGE).ToInt32() == SciMsg.SC_CP_UTF8;
+            var head = new byte[Math.Min(length, 1 << 20)];
+            if (head.Length > 0) Marshal.Copy(text, head, 0, head.Length);
 
-            if (!_settings.IsTraceExtension(path) && !LooksLikeTrace(bytes, utf8))
+            if (!_settings.IsTraceExtension(path) && !LooksLikeTrace(head, utf8))
             {
                 _panel.ShowNotTrace(name);
                 return;
             }
 
-            _lineStarts = LineStarts(bytes);
-            // Non-UTF-8 documents use the system ANSI code page (windows-1254 on Turkish Windows)
-            byte[] text = utf8 ? bytes : Encoding.UTF8.GetBytes(Encoding.Default.GetString(bytes));
-            _panel.ShowTrace(name, text);
+            _lineStarts = LineStarts(text, length);
+            // The page reads the saved file itself when it holds exactly the document; otherwise a temporary UTF-8 copy
+            if (IsSavedAsIs(sci, buffer, path, length)) _panel.ShowTrace(name, path, temporary: false);
+            else _panel.ShowTrace(name, WriteCopy(text, length, utf8, name), temporary: true);
+        }
+
+        /// <summary>
+        /// The document is unmodified and its file has the editor's UTF-8 bytes (an optional BOM aside), so the page
+        /// can read the file from disk.
+        /// </summary>
+        private static bool IsSavedAsIs(IntPtr sci, IntPtr buffer, string path, long length)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return false;
+            if (Sci(sci, SciMsg.SCI_GETCODEPAGE).ToInt32() != SciMsg.SC_CP_UTF8) return false;
+            if (Sci(sci, SciMsg.SCI_GETMODIFY) != IntPtr.Zero) return false;
+            int encoding = Win32.SendMessage(Npp.NppHandle, NppMsg.NPPM_GETBUFFERENCODING, buffer, IntPtr.Zero).ToInt32();
+            if (encoding != NppMsg.UNI_UTF8 && encoding != NppMsg.UNI_COOKIE && encoding != NppMsg.UNI_7BIT) return false;
+            try
+            {
+                return new FileInfo(path).Length == length + (encoding == NppMsg.UNI_UTF8 ? 3 : 0);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private static string TempRoot => Path.Combine(Path.GetTempPath(), Name);
+
+        /// <summary>
+        /// Writes the document as UTF-8 to a folder of its own under %TEMP%\TroiaLens, piece by piece. Non-UTF-8
+        /// documents use the system ANSI code page (windows-1254 on Turkish Windows).
+        /// </summary>
+        private static string WriteCopy(IntPtr text, long length, bool utf8, string name)
+        {
+            string dir = Path.Combine(TempRoot, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            string file = Path.Combine(dir, string.IsNullOrWhiteSpace(name) ? "trace.txt" : name);
+
+            var chunk = new byte[4 << 20];
+            Decoder decoder = utf8 ? null : Encoding.Default.GetDecoder();
+            Encoder encoder = utf8 ? null : new UTF8Encoding(false).GetEncoder();
+            char[] chars = utf8 ? null : new char[chunk.Length];
+            byte[] converted = utf8 ? null : new byte[Encoding.UTF8.GetMaxByteCount(chunk.Length)];
+            using (var output = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 1 << 16))
+            {
+                for (long at = 0; at < length;)
+                {
+                    int n = (int)Math.Min(chunk.Length, length - at);
+                    Marshal.Copy(new IntPtr(text.ToInt64() + at), chunk, 0, n);
+                    at += n;
+                    if (utf8)
+                    {
+                        output.Write(chunk, 0, n);
+                        continue;
+                    }
+                    bool last = at >= length;
+                    int c = decoder.GetChars(chunk, 0, n, chars, 0, last);
+                    output.Write(converted, 0, encoder.GetBytes(chars, 0, c, converted, 0, last));
+                }
+            }
+            return file;
+        }
+
+        /// <summary>Removes copies left behind by an earlier session (the panel deletes its own when it moves on).</summary>
+        private static void CleanTemp()
+        {
+            try
+            {
+                if (!Directory.Exists(TempRoot)) return;
+                foreach (string dir in Directory.GetDirectories(TempRoot))
+                {
+                    try
+                    {
+                        // Another Notepad++ instance may still be showing a recent one
+                        if (Directory.GetLastWriteTimeUtc(dir) < DateTime.UtcNow.AddHours(-12)) Directory.Delete(dir, true);
+                    }
+                    catch (Exception)
+                    {
+                        // In use; next time
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Temp folder not readable; nothing to clean
+            }
         }
 
         /// <summary>
@@ -327,10 +415,18 @@ namespace TroiaLens
             return true;
         }
 
-        private static int[] LineStarts(byte[] b)
+        /// <summary>Start of every "\n" separated line, read from the document piece by piece.</summary>
+        private static long[] LineStarts(IntPtr text, long length)
         {
-            var starts = new List<int>(b.Length / 30 + 1) { 0 };
-            for (int i = 0; i < b.Length; i++) if (b[i] == (byte)'\n') starts.Add(i + 1);
+            var starts = new List<long>(1 << 16) { 0 };
+            var chunk = new byte[4 << 20];
+            for (long at = 0; at < length; at += chunk.Length)
+            {
+                int n = (int)Math.Min(chunk.Length, length - at);
+                Marshal.Copy(new IntPtr(text.ToInt64() + at), chunk, 0, n);
+                for (int i = Array.IndexOf(chunk, (byte)'\n', 0, n); i >= 0; i = Array.IndexOf(chunk, (byte)'\n', i + 1, n - i - 1))
+                    starts.Add(at + i + 1);
+            }
             return starts.ToArray();
         }
 
@@ -372,6 +468,7 @@ namespace TroiaLens
             Safe(() =>
             {
                 if (sci != CurrentScintilla() || CurrentBufferId() != _docBuffer) return;
+                DrawSpan(sci);
                 int line = TraceLineAt(Sci(sci, SciMsg.SCI_GETCURRENTPOS).ToInt64());
                 if (line == _caretLine) return;
                 _caretLine = line;
@@ -436,23 +533,13 @@ namespace TroiaLens
                     ClearMarks(sci);
                     if (from > 0 && to >= from)
                     {
-                        long first = DocLine(sci, from), last = DocLineEnd(sci, to);
-                        // A whole huge trace as the span would only cost time and say nothing
-                        if (last - first < 200000)
-                        {
-                            for (long l = first; l <= last; l++)
-                            {
-                                Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markSpan);
-                                Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markBar);
-                            }
-                            if (!string.IsNullOrEmpty(word))
-                                MarkAll(sci, _indWord, Sci(sci, SciMsg.SCI_POSITIONFROMLINE, (IntPtr)first).ToInt64(),
-                                    Sci(sci, SciMsg.SCI_GETLINEENDPOSITION, (IntPtr)last).ToInt64(), word,
-                                    SciMsg.SCFIND_WHOLEWORD | SciMsg.SCFIND_MATCHCASE);
-                        }
+                        _spanFirst = DocLine(sci, from);
+                        _spanLast = DocLineEnd(sci, to);
+                        _spanWord = word;
                     }
                     _markedSpan = span;
                 }
+                DrawSpan(sci);
 
                 Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
                 if (line > 0)
@@ -482,6 +569,76 @@ namespace TroiaLens
             Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)_indWord);
             Sci(sci, SciMsg.SCI_INDICATORCLEARRANGE, IntPtr.Zero, Sci(sci, SciMsg.SCI_GETLENGTH));
             _markedSpan = null;
+            _spanFirst = _spanLast = _drawnFirst = _drawnLast = -1;
+            _spanWord = null;
+        }
+
+        /// <summary>
+        /// Marks the span's lines (background, margin bar, method name): all of a short span; of a long one the lines
+        /// around the view, redrawn whenever the view nears the edge of what is marked.
+        /// </summary>
+        private static void DrawSpan(IntPtr sci)
+        {
+            if (_spanFirst < 0) return;
+            long first = _spanFirst, last = _spanLast;
+            if (last - first >= SpanWhole)
+            {
+                // The span's line numbers no longer fit an edited document; Analyze starts over when it runs again
+                if (Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64() != _docLength) return;
+                long screen = Sci(sci, SciMsg.SCI_LINESONSCREEN).ToInt64();
+                long visible = Sci(sci, SciMsg.SCI_GETFIRSTVISIBLELINE).ToInt64();
+                long top = Sci(sci, SciMsg.SCI_DOCLINEFROMVISIBLE, (IntPtr)visible).ToInt64();
+                // A folded block on screen may hide any number of lines; those need no marks
+                long bottom = Math.Min(Sci(sci, SciMsg.SCI_DOCLINEFROMVISIBLE, (IntPtr)(visible + screen)).ToInt64(), top + screen);
+                bool covered = _drawnFirst >= 0
+                    && (_drawnFirst == first || top - _drawnFirst > SpanReach / 2)
+                    && (_drawnLast == last || _drawnLast - bottom > SpanReach / 2);
+                if (covered) return;
+                first = Math.Max(first, top - SpanReach);
+                last = Math.Min(last, bottom + SpanReach);
+                // The view is away from the span; whatever is marked is off screen
+                if (first > last) return;
+            }
+            else if (_drawnFirst >= 0) return;
+
+            ShowMarksInText(sci);
+            // Only the lines leaving and entering the window change, so scrolling stays smooth
+            bool overlap = _drawnFirst >= 0 && _drawnFirst <= last && first <= _drawnLast;
+            if (_drawnFirst >= 0)
+            {
+                if (overlap)
+                {
+                    SetSpanLines(sci, _drawnFirst, first - 1, SciMsg.SCI_MARKERDELETE);
+                    SetSpanLines(sci, last + 1, _drawnLast, SciMsg.SCI_MARKERDELETE);
+                }
+                else SetSpanLines(sci, _drawnFirst, _drawnLast, SciMsg.SCI_MARKERDELETE);
+                Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)_indWord);
+                long from = Sci(sci, SciMsg.SCI_POSITIONFROMLINE, (IntPtr)_drawnFirst).ToInt64();
+                Sci(sci, SciMsg.SCI_INDICATORCLEARRANGE, (IntPtr)from,
+                    (IntPtr)(Sci(sci, SciMsg.SCI_GETLINEENDPOSITION, (IntPtr)_drawnLast).ToInt64() - from));
+            }
+            if (overlap)
+            {
+                SetSpanLines(sci, first, _drawnFirst - 1, SciMsg.SCI_MARKERADD);
+                SetSpanLines(sci, _drawnLast + 1, last, SciMsg.SCI_MARKERADD);
+            }
+            else SetSpanLines(sci, first, last, SciMsg.SCI_MARKERADD);
+            if (!string.IsNullOrEmpty(_spanWord))
+                MarkAll(sci, _indWord, Sci(sci, SciMsg.SCI_POSITIONFROMLINE, (IntPtr)first).ToInt64(),
+                    Sci(sci, SciMsg.SCI_GETLINEENDPOSITION, (IntPtr)last).ToInt64(), _spanWord,
+                    SciMsg.SCFIND_WHOLEWORD | SciMsg.SCFIND_MATCHCASE);
+            _drawnFirst = first;
+            _drawnLast = last;
+        }
+
+        /// <summary>Adds or deletes the span background and margin bar on editor lines first..last.</summary>
+        private static void SetSpanLines(IntPtr sci, long first, long last, uint msg)
+        {
+            for (long l = first; l <= last; l++)
+            {
+                Sci(sci, msg, (IntPtr)l, (IntPtr)_markSpan);
+                Sci(sci, msg, (IntPtr)l, (IntPtr)_markBar);
+            }
         }
 
         /// <summary>Fills an indicator over every match of word between start and end.</summary>
@@ -590,7 +747,7 @@ namespace TroiaLens
         /// <summary>1-based trace line containing an editor position.</summary>
         private static int TraceLineAt(long pos)
         {
-            int i = Array.BinarySearch(_lineStarts, (int)Math.Min(pos, int.MaxValue));
+            int i = Array.BinarySearch(_lineStarts, pos);
             return (i >= 0 ? i : ~i - 1) + 1;
         }
 

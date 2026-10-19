@@ -56,6 +56,7 @@ namespace TroiaLens.Npp
         public const uint NPPM_GETPLUGINSCONFIGDIR = NPPMSG + 46;
         public const uint NPPM_ALLOCATEMARKER = NPPMSG + 82;
         public const uint NPPM_GETCURRENTBUFFERID = NPPMSG + 60;
+        public const uint NPPM_GETBUFFERENCODING = NPPMSG + 66;
         public const uint NPPM_ISDARKMODEENABLED = NPPMSG + 107;
         public const uint NPPM_ALLOCATEINDICATOR = NPPMSG + 113;
         public const uint NPPM_GETFULLCURRENTPATH = RUNCOMMAND_USER + 1;
@@ -71,6 +72,11 @@ namespace TroiaLens.Npp
         public const uint DWS_ICONTAB = 0x00000001;
         public const uint DWS_DF_CONT_RIGHT = 1u << 28; // CONT_RIGHT
         public const int DMN_CLOSE = 1050 + 1;
+
+        // UniMode of NPPM_GETBUFFERENCODING: the encodings a saved file keeps the editor's UTF-8 bytes in
+        public const int UNI_UTF8 = 1;
+        public const int UNI_COOKIE = 4;
+        public const int UNI_7BIT = 5;
     }
 
     internal static class SciMsg
@@ -81,6 +87,7 @@ namespace TroiaLens.Npp
         public const uint SCI_MARKERDEFINE = 2040;
         public const uint SCI_MARKERSETBACK = 2042;
         public const uint SCI_MARKERADD = 2043;
+        public const uint SCI_MARKERDELETE = 2044;
         public const uint SCI_MARKERDELETEALL = 2045;
         public const uint SCI_INDICSETSTYLE = 2080;
         public const uint SCI_INDICSETFORE = 2082;
@@ -88,11 +95,14 @@ namespace TroiaLens.Npp
         public const uint SCI_GETCODEPAGE = 2137;
         public const uint SCI_LINEFROMPOSITION = 2166;
         public const uint SCI_POSITIONFROMLINE = 2167;
+        public const uint SCI_GETFIRSTVISIBLELINE = 2152;
+        public const uint SCI_GETMODIFY = 2159;
         public const uint SCI_GETTARGETSTART = 2191;
         public const uint SCI_GETTARGETEND = 2193;
         public const uint SCI_SEARCHINTARGET = 2197;
         public const uint SCI_SETSEARCHFLAGS = 2198;
         public const uint SCI_VISIBLEFROMDOCLINE = 2220;
+        public const uint SCI_DOCLINEFROMVISIBLE = 2221;
         public const uint SCI_ENSUREVISIBLE = 2232;
         public const uint SCI_SETMARGINMASKN = 2244;
         public const uint SCI_GETMARGINMASKN = 2245;

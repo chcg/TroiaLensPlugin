@@ -33,9 +33,10 @@ namespace TroiaLens
 
         // Last document message; sent again whenever the page (re)loads
         private string _state;
-        // Trace text the page fetches from https://troialens-data.local/<token>/<name>, kept in memory only
-        private byte[] _data;
-        private string _dataToken;
+        // Trace file the page streams from https://troialens-data.local/<name>, its folder mapped to that host:
+        // the saved document itself, or a temporary copy (deleted when the panel moves on). Nothing of it stays in memory.
+        private string _dataPath;
+        private bool _dataTemp;
 
         public PanelForm(string webDir, string loaderDir, string userDataDir, bool dark, bool devTools, bool slideOver)
         {
@@ -84,8 +85,7 @@ namespace TroiaLens
 
                 // file:// cannot load module workers, so the UI is served from a virtual https host
                 core.SetVirtualHostNameToFolderMapping(AppHost, _webDir, CoreWebView2HostResourceAccessKind.Allow);
-                core.AddWebResourceRequestedFilter($"https://{DataHost}/*", CoreWebView2WebResourceContext.All);
-                core.WebResourceRequested += (s, e) => ServeData(env, e);
+                MapData();
                 core.WebMessageReceived += OnWebMessage;
                 core.NewWindowRequested += (s, e) => e.Handled = true;
                 core.NavigationStarting += (s, e) =>
@@ -102,25 +102,61 @@ namespace TroiaLens
             }
         }
 
-        public void ShowTrace(string name, byte[] utf8Text)
+        /// <summary>Shows a trace file; a temporary one is deleted once another document replaces it.</summary>
+        public void ShowTrace(string name, string path, bool temporary)
         {
-            _data = utf8Text;
-            _dataToken = Guid.NewGuid().ToString("N");
+            DropData();
+            _dataPath = path;
+            _dataTemp = temporary;
+            MapData();
             _state = Json.Serialize(new Dictionary<string, object>
             {
                 ["type"] = "loadUrl",
                 ["name"] = name,
-                ["url"] = $"https://{DataHost}/{_dataToken}/{Uri.EscapeDataString(name)}",
+                // A new query each time: the same file name may have new content
+                ["url"] = $"https://{DataHost}/{Uri.EscapeDataString(Path.GetFileName(path))}?v={Guid.NewGuid():N}",
             });
             Post(_state);
         }
 
         public void ShowNotTrace(string name)
         {
-            _data = null;
-            _dataToken = null;
+            DropData();
             _state = Json.Serialize(new Dictionary<string, object> { ["type"] = "notTrace", ["name"] = name });
             Post(_state);
+        }
+
+        /// <summary>The data host serves the shown file's folder; WebView2 streams it from disk.</summary>
+        private void MapData()
+        {
+            CoreWebView2 core = _web.CoreWebView2;
+            if (core == null || _dataPath == null) return;
+            try
+            {
+                core.ClearVirtualHostNameToFolderMapping(DataHost);
+            }
+            catch (Exception)
+            {
+                // Nothing mapped yet
+            }
+            core.SetVirtualHostNameToFolderMapping(DataHost, Path.GetDirectoryName(_dataPath), CoreWebView2HostResourceAccessKind.Allow);
+        }
+
+        private void DropData()
+        {
+            if (_dataTemp && _dataPath != null)
+            {
+                try
+                {
+                    Directory.Delete(Path.GetDirectoryName(_dataPath), true);
+                }
+                catch (Exception)
+                {
+                    // Still being read; the plugin cleans up old copies on its next start
+                }
+            }
+            _dataPath = null;
+            _dataTemp = false;
         }
 
         /// <summary>The editor caret moved to another trace line of the shown document.</summary>
@@ -144,6 +180,7 @@ namespace TroiaLens
             {
                 // Notepad++ is closing anyway
             }
+            DropData();
         }
 
         /// <summary>Statement detail as a slide-over from the right instead of a pane under the views.</summary>
@@ -207,22 +244,6 @@ namespace TroiaLens
 
         private static int Int(Dictionary<string, object> msg, string key) =>
             msg.TryGetValue(key, out object value) && value != null ? Convert.ToInt32(value) : 0;
-
-        private void ServeData(CoreWebView2Environment env, CoreWebView2WebResourceRequestedEventArgs e)
-        {
-            var uri = new Uri(e.Request.Uri);
-            if (!uri.Host.Equals(DataHost, StringComparison.OrdinalIgnoreCase)) return;
-            string[] parts = uri.AbsolutePath.Trim('/').Split('/');
-            const string cors = "Access-Control-Allow-Origin: *\r\nCache-Control: no-store";
-            if (_data != null && parts.Length > 0 && parts[0] == _dataToken)
-            {
-                e.Response = env.CreateWebResourceResponse(new MemoryStream(_data, false), 200, "OK", "Content-Type: text/plain; charset=utf-8\r\n" + cors);
-            }
-            else
-            {
-                e.Response = env.CreateWebResourceResponse(null, 404, "Not Found", cors);
-            }
-        }
 
         private void ShowFailure(Exception ex)
         {

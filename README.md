@@ -111,7 +111,7 @@ Komut satırı seçenekleri:
 | `InstallNode=0` | Node.js kurmaz |
 
 Yalnızca eklentiyi kurmak isterseniz `TroiaLens-<sürüm>-x64.msi` dosyasını kullanabilirsiniz. MSI, Notepad++ klasörünü
-kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.0-x64.msi /qn NPPDIR="D:\Apps\Npp"`
+kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.1-x64.msi /qn NPPDIR="D:\Apps\Npp"`
 
 Kurulum programı imzalı olmadığı için Windows SmartScreen uyarı verebilir. **Ek bilgi > Yine de çalıştır** ile devam edin.
 

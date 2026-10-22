@@ -30,9 +30,17 @@ namespace TroiaLens
         // Document shown in the panel. Line starts map trace lines ("\r?\n" separated, as the parser counts them)
         // to editor byte positions; Scintilla also breaks lines at a lone CR, so its line numbers can differ.
         private static IntPtr _docBuffer;
-        private static string _docPath;
+        private static string _docPath, _docName;
         private static long _docLength = -1;
+        private static int _docGen;
         private static long[] _lineStarts;
+
+        // Edits to each open document, counted. The page keeps analyses of recent documents and shows one again
+        // without the text as long as its count has not changed.
+        private static readonly Dictionary<IntPtr, int> Generations = new Dictionary<IntPtr, int>();
+        // Line starts of recently shown documents, so coming back does not scan the text again
+        private static readonly List<(IntPtr Buffer, int Gen, long[] Starts)> RecentLineStarts = new List<(IntPtr, int, long[])>();
+        private const int RecentLineStartsKept = 4;
 
         // Trace line of the editor caret, last reported to or moved by the page; unchanged lines are not reported again
         private static int _caretLine = -1;
@@ -75,6 +83,8 @@ namespace TroiaLens
             _cmdSlideOver = Funcs.Add("Satır ayrıntısını sağda kayan panelde aç", () => Safe(ToggleSlideOver), _settings.DetailSlideOver);
             _cmdSyntax = Funcs.Add("Sözdizimi renkleri", () => Safe(ToggleSyntax), _settings.SyntaxColors);
             Funcs.Add("", null);
+            // F12 may not reach the panel: Notepad++ has its own use for it
+            if (_settings.DevTools) Funcs.Add("Geliştirici araçları", () => Safe(OpenDevTools));
             Funcs.Add("Hakkında", () => Safe(About));
         }
 
@@ -94,7 +104,8 @@ namespace TroiaLens
                         if (_ready) OnBufferActivated(id);
                         break;
                     case NppMsg.NPPN_FILESAVED:
-                        if (_ready && _panelVisible && id == CurrentBufferId()) Analyze(force: true);
+                        // Analysed anew if it was edited since
+                        if (_ready && _panelVisible && id == CurrentBufferId()) Analyze(force: false);
                         break;
                     case NppMsg.NPPN_DARKMODECHANGED:
                         _panel?.ApplyTheme(IsDarkMode());
@@ -106,9 +117,13 @@ namespace TroiaLens
                         break;
                     case NppMsg.NPPN_FILECLOSED:
                         SyntaxClosed(id);
+                        Generations.Remove(id);
+                        RecentLineStarts.RemoveAll(r => r.Buffer == id);
+                        _panel?.Forget(id);
                         break;
                     case NppMsg.NPPN_SHUTDOWN:
-                        _settings.Save();
+                        // Not saving the settings here: menu changes are saved as they happen, and a hand edit made
+                        // while Notepad++ runs would be written over
                         _panel?.Shutdown();
                         break;
                 }
@@ -185,6 +200,12 @@ namespace TroiaLens
             SetCheck(_cmdSlideOver, on);
             _settings.Save();
             _panel?.SetDetailSlideOver(on);
+        }
+
+        private static void OpenDevTools()
+        {
+            if (!_panelVisible) ShowPanel();
+            _panel.OpenDevTools();
         }
 
         private static void About()
@@ -268,7 +289,8 @@ namespace TroiaLens
             IntPtr buffer = CurrentBufferId();
             IntPtr sci = CurrentScintilla();
             long length = Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64();
-            if (!force && buffer == _docBuffer && length == _docLength) return;
+            int gen = Generation(buffer);
+            if (!force && buffer == _docBuffer && gen == _docGen && length == _docLength) return;
 
             // The page starts over without a selection
             if (_markSpan >= 0)
@@ -284,7 +306,9 @@ namespace TroiaLens
 
             _docBuffer = buffer;
             _docPath = path;
+            _docName = name;
             _docLength = length;
+            _docGen = gen;
             _lineStarts = null;
 
             // The document is never copied whole into memory: a trace may be as large as Notepad++ can open.
@@ -296,14 +320,55 @@ namespace TroiaLens
 
             if (!_settings.IsTraceExtension(path) && !LooksLikeTrace(head, utf8))
             {
-                _panel.ShowNotTrace(name);
+                _panel.ShowNotTrace(buffer, name);
                 return;
             }
 
-            _lineStarts = LineStarts(text, length);
+            _lineStarts = LineStartsOf(buffer, gen, text, length);
+            // The page may still hold this version's analysis and asks for the text only when it does not
+            if (force) SendDocument();
+            else _panel.ShowDocument(buffer, gen, name);
+        }
+
+        /// <summary>The page has no analysis of this version of the shown document and asks for its text.</summary>
+        public static void DocumentRequested(IntPtr buffer, int gen) => Safe(() =>
+        {
+            if (_panel == null || _lineStarts == null || buffer != _docBuffer || gen != _docGen) return;
+            if (CurrentBufferId() != buffer || Generation(buffer) != gen) return;
+            SendDocument();
+        });
+
+        private static void SendDocument()
+        {
+            IntPtr sci = CurrentScintilla();
+            IntPtr text = Sci(sci, SciMsg.SCI_GETCHARACTERPOINTER);
+            bool utf8 = Sci(sci, SciMsg.SCI_GETCODEPAGE).ToInt32() == SciMsg.SC_CP_UTF8;
             // The page reads the saved file itself when it holds exactly the document; otherwise a temporary UTF-8 copy
-            if (IsSavedAsIs(sci, buffer, path, length)) _panel.ShowTrace(name, path, temporary: false);
-            else _panel.ShowTrace(name, WriteCopy(text, length, utf8, name), temporary: true);
+            if (IsSavedAsIs(sci, _docBuffer, _docPath, _docLength)) _panel.ShowTrace(_docBuffer, _docGen, _docName, _docPath, temporary: false);
+            else _panel.ShowTrace(_docBuffer, _docGen, _docName, WriteCopy(text, _docLength, utf8, _docName), temporary: true);
+        }
+
+        private static int Generation(IntPtr buffer) => Generations.TryGetValue(buffer, out int gen) ? gen : 0;
+
+        /// <summary>Text was inserted or deleted in a view: its document is another version now.</summary>
+        public static void OnTextModified(IntPtr sci, int type)
+        {
+            if ((type & (SciMsg.SC_MOD_INSERTTEXT | SciMsg.SC_MOD_DELETETEXT)) == 0 || !_ready) return;
+            Safe(() =>
+            {
+                IntPtr buffer = ViewBuffer(ViewOf(sci));
+                if (buffer != IntPtr.Zero) Generations[buffer] = Generation(buffer) + 1;
+            });
+        }
+
+        private static long[] LineStartsOf(IntPtr buffer, int gen, IntPtr text, long length)
+        {
+            int i = RecentLineStarts.FindIndex(r => r.Buffer == buffer);
+            long[] starts = i >= 0 && RecentLineStarts[i].Gen == gen ? RecentLineStarts[i].Starts : LineStarts(text, length);
+            if (i >= 0) RecentLineStarts.RemoveAt(i);
+            RecentLineStarts.Add((buffer, gen, starts));
+            if (RecentLineStarts.Count > RecentLineStartsKept) RecentLineStarts.RemoveAt(0);
+            return starts;
         }
 
         /// <summary>

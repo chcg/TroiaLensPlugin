@@ -66,8 +66,11 @@ namespace TroiaLens.Npp
                 // SCNotification continues after the header with Sci_Position position
                 else if (code == SciMsg.SCN_DOUBLECLICK) Plugin.OnDoubleClick(hwndFrom, Marshal.ReadIntPtr(notifyCode, IntPtr.Size * 3).ToInt64());
                 else if (code == SciMsg.SCN_MODIFIED)
-                    Plugin.OnSyntaxModified(hwndFrom, Marshal.ReadInt32(notifyCode, ScNotification.ModificationTypeOffset),
-                        Marshal.ReadIntPtr(notifyCode, IntPtr.Size * 3).ToInt64());
+                {
+                    int type = Marshal.ReadInt32(notifyCode, ScNotification.ModificationTypeOffset);
+                    Plugin.OnTextModified(hwndFrom, type);
+                    Plugin.OnSyntaxModified(hwndFrom, type, Marshal.ReadIntPtr(notifyCode, IntPtr.Size * 3).ToInt64());
+                }
             }
         }
     }

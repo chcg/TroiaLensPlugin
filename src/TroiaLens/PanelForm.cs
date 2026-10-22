@@ -13,7 +13,8 @@ namespace TroiaLens
 {
     /// <summary>
     /// Dockable panel hosting the analysis UI (web\index.html) in WebView2.
-    /// Page → host: ready, gotoLine, mark, clearMarks, reload, setPrefs. Host → page: theme, prefs, loadUrl, notTrace, caret.
+    /// Page → host: ready, gotoLine, mark, clearMarks, reload, setPrefs, need. Host → page: theme, prefs, show, loadUrl, notTrace,
+    /// caret, forget.
     /// </summary>
     internal sealed class PanelForm : Form
     {
@@ -33,10 +34,13 @@ namespace TroiaLens
 
         // Last document message; sent again whenever the page (re)loads
         private string _state;
-        // Trace file the page streams from https://troialens-data.local/<name>, its folder mapped to that host:
+        // Trace file the page streams from https://troialens-data.local/<name>?v=<token>, served by OnDataRequested:
         // the saved document itself, or a temporary copy (deleted when the panel moves on). Nothing of it stays in memory.
         private string _dataPath;
+        private string _dataToken;
         private bool _dataTemp;
+        // Open while WebView2 reads it; closed when the panel moves on, so a temporary copy can be deleted
+        private Stream _dataStream;
 
         public PanelForm(string webDir, string loaderDir, string userDataDir, bool dark, bool devTools, bool slideOver)
         {
@@ -85,7 +89,10 @@ namespace TroiaLens
 
                 // file:// cannot load module workers, so the UI is served from a virtual https host
                 core.SetVirtualHostNameToFolderMapping(AppHost, _webDir, CoreWebView2HostResourceAccessKind.Allow);
-                MapData();
+                // Not a folder mapping as well: WebView2 applies those only to pages loaded after them, so a trace
+                // from another folder than the first would not be found
+                core.AddWebResourceRequestedFilter($"https://{DataHost}/*", CoreWebView2WebResourceContext.All);
+                core.WebResourceRequested += OnDataRequested;
                 core.WebMessageReceived += OnWebMessage;
                 core.NewWindowRequested += (s, e) => e.Handled = true;
                 core.NavigationStarting += (s, e) =>
@@ -102,48 +109,82 @@ namespace TroiaLens
             }
         }
 
+        /// <summary>
+        /// Shows a trace document the page may still have analysed: doc is the Notepad++ buffer, gen the version of
+        /// its text. Without that analysis the page answers need, and the plugin sends the text with ShowTrace.
+        /// </summary>
+        public void ShowDocument(IntPtr doc, int gen, string name)
+        {
+            DropData();
+            _state = Json.Serialize(new Dictionary<string, object> { ["type"] = "show", ["name"] = name, ["doc"] = DocKey(doc), ["gen"] = gen });
+            Post(_state);
+        }
+
         /// <summary>Shows a trace file; a temporary one is deleted once another document replaces it.</summary>
-        public void ShowTrace(string name, string path, bool temporary)
+        public void ShowTrace(IntPtr doc, int gen, string name, string path, bool temporary)
         {
             DropData();
             _dataPath = path;
             _dataTemp = temporary;
-            MapData();
+            // A new token each time: the same file name may have new content
+            _dataToken = Guid.NewGuid().ToString("N");
             _state = Json.Serialize(new Dictionary<string, object>
             {
                 ["type"] = "loadUrl",
                 ["name"] = name,
-                // A new query each time: the same file name may have new content
-                ["url"] = $"https://{DataHost}/{Uri.EscapeDataString(Path.GetFileName(path))}?v={Guid.NewGuid():N}",
+                ["doc"] = DocKey(doc),
+                ["gen"] = gen,
+                ["url"] = $"https://{DataHost}/{Uri.EscapeDataString(Path.GetFileName(path))}?v={_dataToken}",
             });
             Post(_state);
         }
 
-        public void ShowNotTrace(string name)
+        public void ShowNotTrace(IntPtr doc, string name)
         {
             DropData();
-            _state = Json.Serialize(new Dictionary<string, object> { ["type"] = "notTrace", ["name"] = name });
+            _state = Json.Serialize(new Dictionary<string, object> { ["type"] = "notTrace", ["name"] = name, ["doc"] = DocKey(doc) });
             Post(_state);
         }
 
-        /// <summary>The data host serves the shown file's folder; WebView2 streams it from disk.</summary>
-        private void MapData()
+        /// <summary>The buffer was closed; the page drops its kept view state.</summary>
+        public void Forget(IntPtr doc) => Post(Json.Serialize(new Dictionary<string, object> { ["type"] = "forget", ["doc"] = DocKey(doc) }));
+
+        private static string DocKey(IntPtr doc) => doc.ToInt64().ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>The data host serves the shown file, streamed from disk; an older request finds nothing.</summary>
+        private void OnDataRequested(object sender, CoreWebView2WebResourceRequestedEventArgs e)
         {
-            CoreWebView2 core = _web.CoreWebView2;
-            if (core == null || _dataPath == null) return;
-            try
+            CoreWebView2Environment env = _web.CoreWebView2.Environment;
+            string path = _dataPath;
+            if (path != null && e.Request.Uri.EndsWith("?v=" + _dataToken, StringComparison.Ordinal))
             {
-                core.ClearVirtualHostNameToFolderMapping(DataHost);
+                try
+                {
+                    // Others may write or delete the file meanwhile: Notepad++ saving it, DropData removing a copy
+                    var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+                    // The page reloaded and asks again
+                    _dataStream?.Dispose();
+                    _dataStream = stream;
+                    e.Response = env.CreateWebResourceResponse(stream, 200, "OK", DataHeaders($"Content-Type: text/plain\r\nContent-Length: {stream.Length}"));
+                    return;
+                }
+                catch (Exception)
+                {
+                    // Gone or locked; the page reports it
+                }
             }
-            catch (Exception)
-            {
-                // Nothing mapped yet
-            }
-            core.SetVirtualHostNameToFolderMapping(DataHost, Path.GetDirectoryName(_dataPath), CoreWebView2HostResourceAccessKind.Allow);
+            e.Response = env.CreateWebResourceResponse(null, 404, "Not Found", DataHeaders(null));
         }
+
+        // The page is another origin (the app host), so the response has to allow it, or the fetch fails
+        private static string DataHeaders(string extra) =>
+            $"Access-Control-Allow-Origin: https://{AppHost}\r\nCache-Control: no-store" + (extra == null ? "" : "\r\n" + extra);
 
         private void DropData()
         {
+            // A read still going belongs to a load the page drops anyway
+            _dataStream?.Dispose();
+            _dataStream = null;
             if (_dataTemp && _dataPath != null)
             {
                 try
@@ -152,12 +193,16 @@ namespace TroiaLens
                 }
                 catch (Exception)
                 {
-                    // Still being read; the plugin cleans up old copies on its next start
+                    // Locked by another program; the plugin cleans up old copies on its next start
                 }
             }
             _dataPath = null;
+            _dataToken = null;
             _dataTemp = false;
         }
+
+        /// <summary>Only with DevTools=1 in the settings; until WebView2 has started there is nothing to inspect.</summary>
+        public void OpenDevTools() => _web.CoreWebView2?.OpenDevToolsWindow();
 
         /// <summary>The editor caret moved to another trace line of the shown document.</summary>
         public void PostCaret(int line) => Post(Json.Serialize(new Dictionary<string, object> { ["type"] = "caret", ["line"] = line }));
@@ -235,6 +280,10 @@ namespace TroiaLens
                     break;
                 case "reload":
                     Plugin.ReloadRequested();
+                    break;
+                case "need":
+                    if (msg.TryGetValue("doc", out object needDoc) && long.TryParse(needDoc as string, out long buffer))
+                        Plugin.DocumentRequested(new IntPtr(buffer), Int(msg, "gen"));
                     break;
                 case "setPrefs":
                     if (msg.TryGetValue("detailSlideOver", out object slide) && slide is bool on) Plugin.SetDetailSlideOver(on);

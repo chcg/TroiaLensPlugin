@@ -45,6 +45,8 @@ namespace TroiaLens
             Extensions = ext.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(e => e.StartsWith(".") ? e : "." + e)
                 .ToArray();
+            // First run: the file shows what can be set
+            if (!File.Exists(_file)) Save();
         }
 
         public void Save()
@@ -54,10 +56,12 @@ namespace TroiaLens
                 Directory.CreateDirectory(Path.GetDirectoryName(_file));
                 Write("AutoOpen", AutoOpen ? "1" : "0");
                 Write("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch ? "1" : "0");
-                Write("Extensions", string.Join(";", Extensions));
-                Write("DevTools", DevTools ? "1" : "0");
                 Write("DetailSlideOver", DetailSlideOver ? "1" : "0");
                 Write("SyntaxColors", SyntaxColors ? "1" : "0");
+                // No menu item changes these; the file only gets them once, so an edit made while Notepad++ runs
+                // (often in Notepad++ itself) is not written over
+                WriteIfMissing("Extensions", string.Join(";", Extensions));
+                WriteIfMissing("DevTools", DevTools ? "1" : "0");
             }
             catch (Exception)
             {
@@ -78,5 +82,11 @@ namespace TroiaLens
         private bool Read(string key, bool def) => Read(key, def ? "1" : "0").Trim() == "1";
 
         private void Write(string key, string value) => Win32.WritePrivateProfileString(Section, key, value, _file);
+
+        private void WriteIfMissing(string key, string value)
+        {
+            const string none = "\u0001";
+            if (Read(key, none) == none) Write(key, value);
+        }
     }
 }

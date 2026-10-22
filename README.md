@@ -66,8 +66,8 @@ Görüntülerdeki veriler örnektir, gerçek değildir.
 ## Ayarlar
 
 Ayarlar Notepad++'ın ayar klasöründeki `plugins\config\TroiaLens.ini` dosyasında saklanır. Tam yolu menüdeki
-**Hakkında** penceresinde görebilirsiniz. Çoğu ayarı menüden değiştirebilirsiniz. Dosyayı elle düzenleyecekseniz
-önce Notepad++'ı kapatın; yoksa değişiklikleriniz kapanışta silinir.
+**Hakkında** penceresinde görebilirsiniz. Çoğu ayarı menüden değiştirebilirsiniz. Elle yaptığınız değişiklikler
+Notepad++ yeniden başlayınca geçerli olur.
 
 | Ayar | Varsayılan | Açıklama |
 |---|---|---|
@@ -81,7 +81,8 @@ Uzantısı listede olmasa bile `TROIA CODE EXECUTION TRACE` satırıyla başlaya
 da trace olarak tanınır. Canias'ın `.txt` olarak kaydettiği trace dosyaları bu sayede kendiliğinden açılır.
 `Extensions` ayarına `.txt` eklemeyin; eklerseniz panel her `.txt` dosyasında açılır.
 
-Geliştiriciler için: `DevTools=1` ayarı panelde F12 ile geliştirici araçlarını açar.
+Geliştiriciler için: `DevTools=1` ayarıyla eklenti menüsüne **Geliştirici araçları** komutu eklenir. Panelde F12 de
+çalışır, ama Notepad++ bu tuşu kendi kısayolu için alabilir.
 
 ## Gereksinimler
 

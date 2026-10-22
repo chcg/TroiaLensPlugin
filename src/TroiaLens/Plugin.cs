@@ -10,14 +10,14 @@ using TroiaLens.Npp;
 
 namespace TroiaLens
 {
-    internal static class Plugin
+    internal static partial class Plugin
     {
         public const string Name = "TroiaLens";
 
         public static NppData Npp;
         public static readonly FuncItems Funcs = new FuncItems();
 
-        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver;
+        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver, _cmdSyntax;
         private static Settings _settings;
         private static string _configDir;
         private static PanelForm _panel;
@@ -73,6 +73,7 @@ namespace TroiaLens
             _cmdAutoOpen = Funcs.Add("Trace dosyalarında paneli otomatik aç", () => Safe(ToggleAutoOpen), _settings.AutoOpen);
             _cmdTabSwitch = Funcs.Add("Sekme değişince yeniden analiz et", () => Safe(ToggleTabSwitch), _settings.AnalyzeOnTabSwitch);
             _cmdSlideOver = Funcs.Add("Satır ayrıntısını sağda kayan panelde aç", () => Safe(ToggleSlideOver), _settings.DetailSlideOver);
+            _cmdSyntax = Funcs.Add("Sözdizimi renkleri", () => Safe(ToggleSyntax), _settings.SyntaxColors);
             Funcs.Add("", null);
             Funcs.Add("Hakkında", () => Safe(About));
         }
@@ -86,6 +87,8 @@ namespace TroiaLens
                     case NppMsg.NPPN_READY:
                         _ready = true;
                         OnBufferActivated(CurrentBufferId());
+                        // The other view may show a trace as well
+                        PaintSyntaxViews();
                         break;
                     case NppMsg.NPPN_BUFFERACTIVATED:
                         if (_ready) OnBufferActivated(id);
@@ -96,6 +99,13 @@ namespace TroiaLens
                     case NppMsg.NPPN_DARKMODECHANGED:
                         _panel?.ApplyTheme(IsDarkMode());
                         if (_markSpan >= 0) DefineMarkStyles();
+                        SyntaxThemeChanged();
+                        break;
+                    case NppMsg.NPPN_WORDSTYLESUPDATED:
+                        SyntaxThemeChanged();
+                        break;
+                    case NppMsg.NPPN_FILECLOSED:
+                        SyntaxClosed(id);
                         break;
                     case NppMsg.NPPN_SHUTDOWN:
                         _settings.Save();
@@ -108,6 +118,7 @@ namespace TroiaLens
         private static void OnBufferActivated(IntPtr buffer)
         {
             bool isTrace = IsTraceDocument();
+            SyntaxActivated(buffer, isTrace);
 
             if (isTrace && _settings.AutoOpen && !_panelVisible && !Dismissed.Contains(buffer))
             {
@@ -383,10 +394,12 @@ namespace TroiaLens
         /// Active document has a trace extension, or its beginning looks like a trace (Canias also saves traces
         /// as .txt). Reads only the first 64 KB, so it is cheap on every tab switch.
         /// </summary>
-        private static bool IsTraceDocument()
+        private static bool IsTraceDocument() => IsTraceDocument(CurrentScintilla(), CurrentPath());
+
+        /// <summary>The same for the document shown in a view.</summary>
+        private static bool IsTraceDocument(IntPtr sci, string path)
         {
-            if (_settings.IsTraceExtension(CurrentPath())) return true;
-            IntPtr sci = CurrentScintilla();
+            if (_settings.IsTraceExtension(path)) return true;
             int length = (int)Math.Min(Sci(sci, SciMsg.SCI_GETLENGTH).ToInt64(), 1 << 16);
             if (length <= 0) return false;
             var head = new byte[length];

@@ -11,7 +11,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Product>TroiaLens</Product>
     <Description>TroiaLens kurulumu için Node.js kurulum yardımcısı</Description>
     <DebugType>none</DebugType>

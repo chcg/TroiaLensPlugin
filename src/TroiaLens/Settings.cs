@@ -26,6 +26,9 @@ namespace TroiaLens
         /// <summary>Statement detail slides over from the right instead of docking under the views.</summary>
         public bool DetailSlideOver { get; set; }
 
+        /// <summary>Colour the text of trace documents in the editor.</summary>
+        public bool SyntaxColors { get; set; } = true;
+
         public Settings(string configDir)
         {
             _file = Path.Combine(configDir, "TroiaLens.ini");
@@ -37,6 +40,7 @@ namespace TroiaLens
             AnalyzeOnTabSwitch = Read("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch);
             DevTools = Read("DevTools", DevTools);
             DetailSlideOver = Read("DetailSlideOver", DetailSlideOver);
+            SyntaxColors = Read("SyntaxColors", SyntaxColors);
             string ext = Read("Extensions", string.Join(";", Extensions));
             Extensions = ext.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(e => e.StartsWith(".") ? e : "." + e)
@@ -53,6 +57,7 @@ namespace TroiaLens
                 Write("Extensions", string.Join(";", Extensions));
                 Write("DevTools", DevTools ? "1" : "0");
                 Write("DetailSlideOver", DetailSlideOver ? "1" : "0");
+                Write("SyntaxColors", SyntaxColors ? "1" : "0");
             }
             catch (Exception)
             {

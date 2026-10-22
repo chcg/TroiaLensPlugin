@@ -58,9 +58,16 @@ namespace TroiaLens.Npp
                 Plugin.OnNotification(code, idFrom);
             else if (hwndFrom == Plugin.Npp.ScintillaMainHandle || hwndFrom == Plugin.Npp.ScintillaSecondHandle)
             {
-                if (code == SciMsg.SCN_UPDATEUI) Plugin.OnEditorUpdate(hwndFrom);
+                if (code == SciMsg.SCN_UPDATEUI)
+                {
+                    Plugin.OnEditorUpdate(hwndFrom);
+                    Plugin.OnSyntaxUpdate(hwndFrom, Marshal.ReadInt32(notifyCode, ScNotification.UpdatedOffset));
+                }
                 // SCNotification continues after the header with Sci_Position position
                 else if (code == SciMsg.SCN_DOUBLECLICK) Plugin.OnDoubleClick(hwndFrom, Marshal.ReadIntPtr(notifyCode, IntPtr.Size * 3).ToInt64());
+                else if (code == SciMsg.SCN_MODIFIED)
+                    Plugin.OnSyntaxModified(hwndFrom, Marshal.ReadInt32(notifyCode, ScNotification.ModificationTypeOffset),
+                        Marshal.ReadIntPtr(notifyCode, IntPtr.Size * 3).ToInt64());
             }
         }
     }

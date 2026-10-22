@@ -40,6 +40,9 @@ Görüntülerdeki veriler örnektir, gerçek değildir.
   yeniden çift tıklarsanız işaret kalkar.
 - Satır ayrıntısı alt bölmede açılır. Ayrıntı başlığındaki düğmeyle ya da menüden sağdan kayan panele geçebilirsiniz;
   tercihiniz hatırlanır.
+- Trace dosyalarının metni editörde renklenir: deyimler, SQL, metot adları, değerler ve süreler ayrı renklerle,
+  hata satırları kırmızı zeminle, uyarılar dalgalı alt çizgiyle gösterilir. Panel kapalıyken de çalışır; menüden
+  kapatabilirsiniz.
 - Dosyayı kaydettiğinizde analiz yenilenir.
 - Notepad++ koyu temadaysa panel de koyu açılır.
 - Bir trace dosyasında paneli kapatırsanız, Notepad++'ı kapatana kadar o dosyada panel kendiliğinden açılmaz.
@@ -57,6 +60,7 @@ Görüntülerdeki veriler örnektir, gerçek değildir.
 | Trace dosyalarında paneli otomatik aç | Trace dosyasına geçince panelin kendiliğinden açılıp açılmayacağını belirler |
 | Sekme değişince yeniden analiz et | Panel açıkken her sekme değişiminde analizi yeniler |
 | Satır ayrıntısını sağda kayan panelde aç | Satır ayrıntısını alt bölme yerine sağdan kayan panelde gösterir |
+| Sözdizimi renkleri | Trace dosyalarının metnini editörde renklendirir; kapatınca renkler kalkar |
 | Hakkında | Sürümü, trace uzantılarını ve ayar dosyasının yerini gösterir |
 
 ## Ayarlar
@@ -70,6 +74,7 @@ Ayarlar Notepad++'ın ayar klasöründeki `plugins\config\TroiaLens.ini` dosyas�
 | `AutoOpen` | `1` | Trace dosyasına geçince paneli kendiliğinden aç |
 | `AnalyzeOnTabSwitch` | `1` | Panel açıkken her sekme değişiminde analizi yenile |
 | `DetailSlideOver` | `0` | `1` ise satır ayrıntısı sağdan kayan panelde açılır |
+| `SyntaxColors` | `1` | Trace dosyalarının metnini editörde renklendir |
 | `Extensions` | `.trace` | Trace sayılan uzantılar; birden fazlaysa `;` ile ayrılır |
 
 Uzantısı listede olmasa bile `TROIA CODE EXECUTION TRACE` satırıyla başlayan ya da `▎` karakteri içeren dosyalar
@@ -111,7 +116,7 @@ Komut satırı seçenekleri:
 | `InstallNode=0` | Node.js kurmaz |
 
 Yalnızca eklentiyi kurmak isterseniz `TroiaLens-<sürüm>-x64.msi` dosyasını kullanabilirsiniz. MSI, Notepad++ klasörünü
-kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.1-x64.msi /qn NPPDIR="D:\Apps\Npp"`
+kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.2-x64.msi /qn NPPDIR="D:\Apps\Npp"`
 
 Kurulum programı imzalı olmadığı için Windows SmartScreen uyarı verebilir. **Ek bilgi > Yine de çalıştır** ile devam edin.
 

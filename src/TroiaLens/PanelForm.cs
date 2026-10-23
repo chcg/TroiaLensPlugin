@@ -13,7 +13,7 @@ namespace TroiaLens
 {
     /// <summary>
     /// Dockable panel hosting the analysis UI (web\index.html) in WebView2.
-    /// Page → host: ready, gotoLine, mark, clearMarks, reload, setPrefs, need. Host → page: theme, prefs, show, loadUrl, notTrace,
+    /// Page → host: ready, gotoLine, mark, clearMarks, reload, setPrefs, need, saveCsv. Host → page: theme, prefs, show, loadUrl, notTrace,
     /// caret, forget.
     /// </summary>
     internal sealed class PanelForm : Form
@@ -287,6 +287,10 @@ namespace TroiaLens
                     break;
                 case "setPrefs":
                     if (msg.TryGetValue("detailSlideOver", out object slide) && slide is bool on) Plugin.SetDetailSlideOver(on);
+                    break;
+                case "saveCsv":
+                    if (msg.TryGetValue("name", out object csvName) && msg.TryGetValue("text", out object csv))
+                        Plugin.SaveCsv(csvName as string, csv as string ?? "");
                     break;
             }
         }

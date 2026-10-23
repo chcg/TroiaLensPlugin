@@ -8,7 +8,7 @@
 
 Canias ERP'nin **TROIA CODE EXECUTION TRACE** dosyalarını Notepad++ içinde analiz eden bir eklenti.
 Trace dosyasını açtığınızda sağ tarafta bir panel açılır. Panelde şu sekmeler vardır: Özet, Çağrı ağacı, SQL,
-Tekrarlar, Mesajlar ve Hata/Uyarı. Paneldeki bir satıra tıkladığınızda editör o satıra gider.
+Tekrarlar, Mesajlar, Hata/Uyarı ve (trace'te DUMP varsa) Dump. Paneldeki bir satıra tıkladığınızda editör o satıra gider.
 
 Paneldeki ekranlar [TroiaLens web uygulamasıyla](https://github.com/ufukt51/TroiaLens) aynıdır.
 
@@ -117,7 +117,7 @@ Komut satırı seçenekleri:
 | `InstallNode=0` | Node.js kurmaz |
 
 Yalnızca eklentiyi kurmak isterseniz `TroiaLens-<sürüm>-x64.msi` dosyasını kullanabilirsiniz. MSI, Notepad++ klasörünü
-kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.2-x64.msi /qn NPPDIR="D:\Apps\Npp"`
+kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLens-0.1.3-x64.msi /qn NPPDIR="D:\Apps\Npp"`
 
 Kurulum programı imzalı olmadığı için Windows SmartScreen uyarı verebilir. **Ek bilgi > Yine de çalıştır** ile devam edin.
 

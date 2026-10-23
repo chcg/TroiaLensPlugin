@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -260,6 +261,24 @@ namespace TroiaLens
 
         public static void ReloadRequested() => Safe(() => Analyze(force: true));
 
+        /// <summary>
+        /// Writes a dump exported by the page to %TEMP%\TroiaLens (UTF-8 with BOM, so Excel reads Turkish letters)
+        /// and opens it with its default program (Excel). Files sit beside the trace copy folders; CleanCsv removes
+        /// them after a day.
+        /// </summary>
+        public static void SaveCsv(string name, string text) => Safe(() =>
+        {
+            Directory.CreateDirectory(TempRoot);
+            CleanCsv();
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name?.Replace(c, '_');
+            if (string.IsNullOrWhiteSpace(name)) name = "dump.csv";
+            string stem = Path.GetFileNameWithoutExtension(name), ext = Path.GetExtension(name);
+            string file = Path.Combine(TempRoot, name);
+            for (int n = 2; File.Exists(file); n++) file = Path.Combine(TempRoot, $"{stem} ({n}){ext}");
+            File.WriteAllText(file, text, new UTF8Encoding(true));
+            Process.Start(file);
+        });
+
         private static void RegisterDock(PanelForm form)
         {
             _tabIcon = CreateTabIcon();
@@ -446,6 +465,30 @@ namespace TroiaLens
                     catch (Exception)
                     {
                         // In use; next time
+                    }
+                }
+                CleanCsv();
+            }
+            catch (Exception)
+            {
+                // Temp folder not readable; nothing to clean
+            }
+        }
+
+        /// <summary>Removes exported CSV files older than a day; Notepad++ may stay open for days, so SaveCsv calls it too.</summary>
+        private static void CleanCsv()
+        {
+            try
+            {
+                foreach (string file in Directory.GetFiles(TempRoot, "*.csv"))
+                {
+                    try
+                    {
+                        if (File.GetLastWriteTimeUtc(file) < DateTime.UtcNow.AddDays(-1)) File.Delete(file);
+                    }
+                    catch (Exception)
+                    {
+                        // Open in Excel; next time
                     }
                 }
             }

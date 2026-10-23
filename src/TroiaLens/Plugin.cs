@@ -56,8 +56,6 @@ namespace TroiaLens
         private static bool? _marksDark;
         // Span currently drawn ("from:to:word"); moving within one method only moves the row mark
         private static string _markedSpan;
-        // Trace lines of the selected row (0 = none), kept so the row tint can be switched on again
-        private static int _rowLine, _rowLineEnd;
         // Editor lines of that span and of the part of it carrying marks: a long span is marked only around the
         // view, and the marks move along as the view scrolls (a whole 800K-line method would take seconds)
         private static long _spanFirst = -1, _spanLast = -1, _drawnFirst = -1, _drawnLast = -1;
@@ -213,7 +211,7 @@ namespace TroiaLens
 
         /// <summary>
         /// From the menu or the call tree's switch: saves the choice, ticks the menu item, tells the page and
-        /// adds or removes the selected row's tint at once.
+        /// shows or hides the background tints at once (the marks stay; only their style changes).
         /// </summary>
         internal static void SetRowHighlight(bool on)
         {
@@ -221,7 +219,7 @@ namespace TroiaLens
             SetCheck(_cmdRowHighlight, on);
             _settings.Save();
             _panel?.SetRowHighlight(on);
-            if (_markSpan >= 0 && _lineStarts != null && CurrentBufferId() == _docBuffer) DrawRow(CurrentScintilla());
+            if (_markSpan >= 0) DefineMarkStyles();
         }
 
         private static void OpenDevTools()
@@ -691,19 +689,13 @@ namespace TroiaLens
                 }
                 DrawSpan(sci);
 
-                _rowLine = line;
-                _rowLineEnd = lineEnd;
-                DrawRow(sci);
+                Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
+                if (line > 0)
+                {
+                    long first = DocLine(sci, line), last = DocLineEnd(sci, Math.Max(line, lineEnd));
+                    for (long l = first; l <= last && l - first < 1000; l++) Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markRow);
+                }
             });
-        }
-
-        /// <summary>Tints the selected row's lines, unless the setting is off.</summary>
-        private static void DrawRow(IntPtr sci)
-        {
-            Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
-            if (_rowLine <= 0 || !_settings.RowHighlight) return;
-            long first = DocLine(sci, _rowLine), last = DocLineEnd(sci, Math.Max(_rowLine, _rowLineEnd));
-            for (long l = first; l <= last && l - first < 1000; l++) Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markRow);
         }
 
         /// <summary>Removes the row marks (and with pick the double-clicked word's marks) from the analysed document, if it is the active one.</summary>
@@ -725,7 +717,6 @@ namespace TroiaLens
             Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)_indWord);
             Sci(sci, SciMsg.SCI_INDICATORCLEARRANGE, IntPtr.Zero, Sci(sci, SciMsg.SCI_GETLENGTH));
             _markedSpan = null;
-            _rowLine = _rowLineEnd = 0;
             _spanFirst = _spanLast = _drawnFirst = _drawnLast = -1;
             _spanWord = null;
         }
@@ -836,10 +827,19 @@ namespace TroiaLens
             // Styles belong to each view, the marks themselves to the document
             foreach (IntPtr sci in new[] { Npp.ScintillaMainHandle, Npp.ScintillaSecondHandle })
             {
-                DefineBackground(sci, _markSpan, Amber, 0x24, SciMsg.SC_LAYER_OVER_TEXT);
-                // The selected row's whole block in light yellow, under the text so it stays crisp; a dark theme gets a
-                // fainter tint to keep its light text readable
-                DefineBackground(sci, _markRow, LightYellow, dark ? 0x48 : 0xB4, SciMsg.SC_LAYER_UNDER_TEXT);
+                if (_settings.RowHighlight)
+                {
+                    DefineBackground(sci, _markSpan, Amber, 0x24, SciMsg.SC_LAYER_OVER_TEXT);
+                    // The selected row's whole block in light yellow, under the text so it stays crisp; a dark theme gets a
+                    // fainter tint to keep its light text readable
+                    DefineBackground(sci, _markRow, LightYellow, dark ? 0x48 : 0xB4, SciMsg.SC_LAYER_UNDER_TEXT);
+                }
+                else
+                {
+                    // Tints off: the marks stay in place but draw nothing; the margin bar and the word boxes still show
+                    Sci(sci, SciMsg.SCI_MARKERDEFINE, (IntPtr)_markSpan, (IntPtr)SciMsg.SC_MARK_EMPTY);
+                    Sci(sci, SciMsg.SCI_MARKERDEFINE, (IntPtr)_markRow, (IntPtr)SciMsg.SC_MARK_EMPTY);
+                }
                 Sci(sci, SciMsg.SCI_MARKERDEFINE, (IntPtr)_markBar, (IntPtr)SciMsg.SC_MARK_LEFTRECT);
                 Sci(sci, SciMsg.SCI_MARKERSETBACK, (IntPtr)_markBar, (IntPtr)Amber);
                 DefineBox(sci, _indWord, Teal, 90);

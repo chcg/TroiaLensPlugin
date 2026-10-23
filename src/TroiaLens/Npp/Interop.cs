@@ -163,6 +163,7 @@ namespace TroiaLens.Npp
         public const uint SCN_MODIFIED = 2008;
 
         public const int SC_CP_UTF8 = 65001;
+        public const int SC_MARK_EMPTY = 5;
         public const int SC_MARK_BACKGROUND = 22;
         public const int SC_MARK_LEFTRECT = 27;
         public const int SC_ALPHA_NOALPHA = 256;

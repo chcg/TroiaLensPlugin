@@ -27,7 +27,7 @@ namespace TroiaLens
         /// <summary>Statement detail slides over from the right instead of docking under the views.</summary>
         public bool DetailSlideOver { get; set; }
 
-        /// <summary>Tint the lines of the row selected in the panel (light yellow) in the editor.</summary>
+        /// <summary>Tint the selected row's method and the row itself in the editor; off, only the margin bar and word boxes show.</summary>
         public bool RowHighlight { get; set; } = true;
 
         /// <summary>Colour the text of trace documents in the editor.</summary>

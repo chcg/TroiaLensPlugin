@@ -35,8 +35,8 @@ Görüntülerdeki veriler örnektir, gerçek değildir.
   panel o satırı seçer.
 - Ayrıntı başlığındaki **Editörde göster** düğmesi satıra gider ve imleci editöre taşır.
 - Çağrı ağacında bir satır seçtiğinizde, satırın ait olduğu metot editörde açık sarıyla, satırın kendisi koyu sarıyla
-  işaretlenir. Seçili satırın renklendirmesini menüden ya da Çağrı ağacındaki **Blok rengi** kutusundan
-  kapatabilirsiniz; metodun işareti kalır.
+  işaretlenir. Bu zemin renklerini menüden ya da Çağrı ağacındaki **Blok rengi** kutusundan kapatabilirsiniz;
+  kapalıyken metodun yalnızca soldaki çubuğu ve metot adının çerçevesi kalır.
 - Editörde bir kelimeye çift tıkladığınızda, kelime dosyada geçtiği her yerde pembeyle işaretlenir. Aynı kelimeye
   yeniden çift tıklarsanız işaret kalkar.
 - Satır ayrıntısı alt bölmede açılır. Ayrıntı başlığındaki düğmeyle ya da menüden sağdan kayan panele geçebilirsiniz;
@@ -61,7 +61,7 @@ Görüntülerdeki veriler örnektir, gerçek değildir.
 | Trace dosyalarında paneli otomatik aç | Trace dosyasına geçince panelin kendiliğinden açılıp açılmayacağını belirler |
 | Sekme değişince yeniden analiz et | Panel açıkken her sekme değişiminde analizi yeniler |
 | Satır ayrıntısını sağda kayan panelde aç | Satır ayrıntısını alt bölme yerine sağdan kayan panelde gösterir |
-| Seçili satırın kod bloğunu renklendir | Panelde seçilen satırın kod bloğunu editörde sarıyla işaretler. Çağrı ağacındaki **Blok rengi** kutusuyla aynıdır. |
+| Seçili satırın kod bloğunu renklendir | Panelde seçilen satırın metodunu ve kendisini editörde sarı zeminle gösterir. Çağrı ağacındaki **Blok rengi** kutusuyla aynıdır. |
 | Sözdizimi renkleri | Trace dosyalarının metnini editörde renklendirir; kapatınca renkler kalkar |
 | Güncellemeleri denetle | Releases sayfasında yeni sürüm olup olmadığına bakar; varsa indirip kurar |
 | Güncellemeleri her gün denetle | Notepad++ açılınca günde bir kez yeni sürüme bakılıp bakılmayacağını belirler |
@@ -78,7 +78,7 @@ Notepad++ yeniden başlayınca geçerli olur.
 | `AutoOpen` | `1` | Trace dosyasına geçince paneli kendiliğinden aç |
 | `AnalyzeOnTabSwitch` | `1` | Panel açıkken her sekme değişiminde analizi yenile |
 | `DetailSlideOver` | `0` | `1` ise satır ayrıntısı sağdan kayan panelde açılır |
-| `RowHighlight` | `1` | Panelde seçilen satırın kod bloğunu editörde sarıyla işaretle |
+| `RowHighlight` | `1` | Panelde seçilen satırın metodunu ve kendisini editörde sarı zeminle göster |
 | `SyntaxColors` | `1` | Trace dosyalarının metnini editörde renklendir |
 | `Extensions` | `.trace` | Trace sayılan uzantılar; birden fazlaysa `;` ile ayrılır |
 | `CheckUpdates` | `1` | Notepad++ açılınca günde bir kez yeni sürüme bak. Kapatmak için `0` yapın ya da menüdeki işareti kaldırın |

@@ -36,7 +36,8 @@ function Update-NppPluginList([string]$version, [string]$tag, [string]$zip) {
 
     if (-not (Test-Path (Join-Path $npp '.git'))) {
         Push-Location (Split-Path $root)
-        try { gh repo fork $upstream --clone --remote; if ($LASTEXITCODE) { throw 'nppPluginList fork edilemedi' } }
+        # The clone gets the fork as origin and the list itself as upstream
+        try { gh repo fork $upstream --clone; if ($LASTEXITCODE) { throw 'nppPluginList fork edilemedi' } }
         finally { Pop-Location }
     }
     if (git -C $npp status --porcelain --untracked-files=no) { throw "Commit edilmemiş değişiklikler var: $npp" }

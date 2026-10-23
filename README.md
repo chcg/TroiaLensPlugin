@@ -61,6 +61,8 @@ Görüntülerdeki veriler örnektir, gerçek değildir.
 | Sekme değişince yeniden analiz et | Panel açıkken her sekme değişiminde analizi yeniler |
 | Satır ayrıntısını sağda kayan panelde aç | Satır ayrıntısını alt bölme yerine sağdan kayan panelde gösterir |
 | Sözdizimi renkleri | Trace dosyalarının metnini editörde renklendirir; kapatınca renkler kalkar |
+| Güncellemeleri denetle | Releases sayfasında yeni sürüm olup olmadığına bakar; varsa indirip kurar |
+| Güncellemeleri her gün denetle | Notepad++ açılınca günde bir kez yeni sürüme bakılıp bakılmayacağını belirler |
 | Hakkında | Sürümü, trace uzantılarını ve ayar dosyasının yerini gösterir |
 
 ## Ayarlar
@@ -76,6 +78,8 @@ Notepad++ yeniden başlayınca geçerli olur.
 | `DetailSlideOver` | `0` | `1` ise satır ayrıntısı sağdan kayan panelde açılır |
 | `SyntaxColors` | `1` | Trace dosyalarının metnini editörde renklendir |
 | `Extensions` | `.trace` | Trace sayılan uzantılar; birden fazlaysa `;` ile ayrılır |
+| `CheckUpdates` | `1` | Notepad++ açılınca günde bir kez yeni sürüme bak. Kapatmak için `0` yapın ya da menüdeki işareti kaldırın |
+| `SkippedVersion` | | "Bu sürümü atla" dediğiniz sürüm; kendiliğinden yeniden sorulmaz |
 
 Uzantısı listede olmasa bile `TROIA CODE EXECUTION TRACE` satırıyla başlayan ya da `▎` karakteri içeren dosyalar
 da trace olarak tanınır. Canias'ın `.txt` olarak kaydettiği trace dosyaları bu sayede kendiliğinden açılır.
@@ -121,12 +125,24 @@ kendisi bulur ama .NET, WebView2 ve Node.js kurmaz. Örnek: `msiexec /i TroiaLen
 
 Kurulum programı imzalı olmadığı için Windows SmartScreen uyarı verebilir. **Ek bilgi > Yine de çalıştır** ile devam edin.
 
+**Güncelleme:**
+
+0.1.4 ve sonraki sürümler yeni sürümü kendileri bulur. Notepad++ açılınca günde bir kez Releases sayfasına bakılır;
+yeni sürüm varsa sorulur. Kabul ederseniz kurulum programı indirilir ve doğrulanır. Notepad++ kapanınca kurulur,
+sonra Notepad++ yeniden açılır. Elle denetlemek için: **Eklentiler > TroiaLens > Güncellemeleri denetle**.
+
+0.1.0–0.1.3 sürümlerinde bu özellik yok. Bir kez elle güncelleyin: Notepad++'ı kapatın ve en son
+`TroiaLens-Setup-<sürüm>.exe` dosyasını çalıştırın. Eski sürüm kendiliğinden kaldırılır; eklentiyi zip ile
+kurduysanız dosyaların üzerine yazılır. Sonraki sürümler kendiliğinden gelir.
+
 **Hazır zip ile:**
 
 1. [Releases](https://github.com/ufukt51/TroiaLensPlugin/releases/latest) sayfasından `TroiaLens-<sürüm>-x64.zip` dosyasını indirin.
 2. Notepad++'ı kapatın.
-3. Zip içindeki `TroiaLens` klasörünü Notepad++ kurulum klasöründeki `plugins` klasörüne kopyalayın
-   (genellikle `C:\Program Files\Notepad++\plugins`).
+3. Notepad++ kurulum klasöründeki `plugins` klasöründe `TroiaLens` adında bir klasör açın
+   (genellikle `C:\Program Files\Notepad++\plugins\TroiaLens`) ve zip'in içeriğini bu klasöre çıkarın.
+   `TroiaLens.dll` doğrudan bu klasörde olmalı. (0.1.3 ve önceki zip'lerde içerik bir `TroiaLens` klasöründeydi;
+   o klasörü `plugins` klasörüne kopyalayın.)
 4. Notepad++'ı yeniden açın.
 
 **"Uzak kaynaktan yüklenemiyor" hatası alırsanız:**

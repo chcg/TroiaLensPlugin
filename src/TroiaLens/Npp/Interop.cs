@@ -83,6 +83,9 @@ namespace TroiaLens.Npp
         public const uint NPPM_ALLOCATEINDICATOR = NPPMSG + 113;
         public const uint NPPM_GETFULLCURRENTPATH = RUNCOMMAND_USER + 1;
 
+        // Menu command ids (menuCmdID.h): IDM_FILE = IDM + 1000, IDM = 40000
+        public const int IDM_FILE_EXIT = 41000 + 11;
+
         private const uint NPPN_FIRST = 1000;
         public const uint NPPN_READY = NPPN_FIRST + 1;
         public const uint NPPN_FILECLOSED = NPPN_FIRST + 5;
@@ -183,6 +186,10 @@ namespace TroiaLens.Npp
     internal static class Win32
     {
         public const int WM_NOTIFY = 0x004E;
+        public const uint WM_COMMAND = 0x0111;
+
+        [DllImport("user32.dll")]
+        public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);

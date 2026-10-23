@@ -18,7 +18,7 @@ namespace TroiaLens
         public static NppData Npp;
         public static readonly FuncItems Funcs = new FuncItems();
 
-        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver, _cmdSyntax;
+        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver, _cmdSyntax, _cmdCheckUpdates;
         private static Settings _settings;
         private static string _configDir;
         private static PanelForm _panel;
@@ -86,6 +86,8 @@ namespace TroiaLens
             Funcs.Add("", null);
             // F12 may not reach the panel: Notepad++ has its own use for it
             if (_settings.DevTools) Funcs.Add("Geliştirici araçları", () => Safe(OpenDevTools));
+            Funcs.Add("Güncellemeleri denetle", () => Safe(CheckUpdateCommand));
+            _cmdCheckUpdates = Funcs.Add("Güncellemeleri her gün denetle", () => Safe(ToggleCheckUpdates), _settings.CheckUpdates);
             Funcs.Add("Hakkında", () => Safe(About));
         }
 
@@ -100,6 +102,7 @@ namespace TroiaLens
                         OnBufferActivated(CurrentBufferId());
                         // The other view may show a trace as well
                         PaintSyntaxViews();
+                        AutoCheckUpdate();
                         break;
                     case NppMsg.NPPN_BUFFERACTIVATED:
                         if (_ready) OnBufferActivated(id);

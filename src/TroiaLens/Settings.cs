@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,6 +30,14 @@ namespace TroiaLens
         /// <summary>Colour the text of trace documents in the editor.</summary>
         public bool SyntaxColors { get; set; } = true;
 
+        /// <summary>Look for a new release on GitHub once a day.</summary>
+        public bool CheckUpdates { get; set; } = true;
+
+        public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
+
+        /// <summary>Release the user chose to skip; it is not offered again unless asked for from the menu.</summary>
+        public string SkippedVersion { get; set; } = "";
+
         public Settings(string configDir)
         {
             _file = Path.Combine(configDir, "TroiaLens.ini");
@@ -41,12 +50,18 @@ namespace TroiaLens
             DevTools = Read("DevTools", DevTools);
             DetailSlideOver = Read("DetailSlideOver", DetailSlideOver);
             SyntaxColors = Read("SyntaxColors", SyntaxColors);
+            CheckUpdates = Read("CheckUpdates", CheckUpdates);
+            SkippedVersion = Read("SkippedVersion", SkippedVersion).Trim();
+            if (DateTime.TryParse(Read("LastUpdateCheck", ""), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var last))
+                LastUpdateCheck = last;
             string ext = Read("Extensions", string.Join(";", Extensions));
             Extensions = ext.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(e => e.StartsWith(".") ? e : "." + e)
                 .ToArray();
-            // First run: the file shows what can be set
+            // First run: the file shows what can be set. A file from before 0.1.4 gets the update switch, on
             if (!File.Exists(_file)) Save();
+            else WriteIfMissing("CheckUpdates", CheckUpdates ? "1" : "0");
         }
 
         public void Save()
@@ -58,6 +73,10 @@ namespace TroiaLens
                 Write("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch ? "1" : "0");
                 Write("DetailSlideOver", DetailSlideOver ? "1" : "0");
                 Write("SyntaxColors", SyntaxColors ? "1" : "0");
+                Write("CheckUpdates", CheckUpdates ? "1" : "0");
+                Write("SkippedVersion", SkippedVersion);
+                if (LastUpdateCheck > DateTime.MinValue)
+                    Write("LastUpdateCheck", LastUpdateCheck.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
                 // No menu item changes these; the file only gets them once, so an edit made while Notepad++ runs
                 // (often in Notepad++ itself) is not written over
                 WriteIfMissing("Extensions", string.Join(";", Extensions));

@@ -47,7 +47,8 @@ Remove-Item (Join-Path $pkg 'web\sample-trace.txt') -ErrorAction SilentlyContinu
 $version = (Get-Item (Join-Path $pkg 'TroiaLens.dll')).VersionInfo.ProductVersion -replace '\+.*$', ''
 $zip = Join-Path $out "TroiaLens-$version-x64.zip"
 if (Test-Path $zip) { Remove-Item $zip }
-Compress-Archive -Path $pkg -DestinationPath $zip
+# TroiaLens.dll at the root of the zip, as Notepad++'s Plugins Admin expects
+Compress-Archive -Path (Join-Path $pkg '*') -DestinationPath $zip
 
 if (-not $SkipInstaller) {
     # MSI versions are numeric only

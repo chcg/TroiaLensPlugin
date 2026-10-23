@@ -30,6 +30,7 @@ namespace TroiaLens
         private readonly bool _devTools;
         private bool _dark;
         private bool _slideOver;
+        private bool _rowHighlight;
         private bool _pageReady;
 
         // Last document message; sent again whenever the page (re)loads
@@ -42,7 +43,7 @@ namespace TroiaLens
         // Open while WebView2 reads it; closed when the panel moves on, so a temporary copy can be deleted
         private Stream _dataStream;
 
-        public PanelForm(string webDir, string loaderDir, string userDataDir, bool dark, bool devTools, bool slideOver)
+        public PanelForm(string webDir, string loaderDir, string userDataDir, bool dark, bool devTools, bool slideOver, bool rowHighlight)
         {
             _webDir = webDir;
             _loaderDir = loaderDir;
@@ -50,6 +51,7 @@ namespace TroiaLens
             _devTools = devTools;
             _dark = dark;
             _slideOver = slideOver;
+            _rowHighlight = rowHighlight;
 
             Text = Plugin.Name;
             FormBorderStyle = FormBorderStyle.None;
@@ -237,7 +239,15 @@ namespace TroiaLens
 
         private string ThemeMessage() => Json.Serialize(new Dictionary<string, object> { ["type"] = "theme", ["dark"] = _dark });
 
-        private string PrefsMessage() => Json.Serialize(new Dictionary<string, object> { ["type"] = "prefs", ["detailSlideOver"] = _slideOver });
+        /// <summary>The editor tints the selected row's lines.</summary>
+        public void SetRowHighlight(bool on)
+        {
+            _rowHighlight = on;
+            Post(PrefsMessage());
+        }
+
+        private string PrefsMessage() =>
+            Json.Serialize(new Dictionary<string, object> { ["type"] = "prefs", ["detailSlideOver"] = _slideOver, ["rowHighlight"] = _rowHighlight });
 
         private void Post(string json)
         {
@@ -287,10 +297,15 @@ namespace TroiaLens
                     break;
                 case "setPrefs":
                     if (msg.TryGetValue("detailSlideOver", out object slide) && slide is bool on) Plugin.SetDetailSlideOver(on);
+                    if (msg.TryGetValue("rowHighlight", out object tint) && tint is bool tinted) Plugin.SetRowHighlight(tinted);
                     break;
                 case "saveCsv":
                     if (msg.TryGetValue("name", out object csvName) && msg.TryGetValue("text", out object csv))
                         Plugin.SaveCsv(csvName as string, csv as string ?? "");
+                    break;
+                case "saveXlsx":
+                    if (msg.TryGetValue("name", out object xlsxName) && msg.TryGetValue("data", out object xlsx))
+                        Plugin.SaveXlsx(xlsxName as string, xlsx as string ?? "");
                     break;
             }
         }

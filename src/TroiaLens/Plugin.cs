@@ -18,7 +18,7 @@ namespace TroiaLens
         public static NppData Npp;
         public static readonly FuncItems Funcs = new FuncItems();
 
-        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver, _cmdSyntax, _cmdCheckUpdates;
+        private static int _cmdPanel, _cmdAutoOpen, _cmdTabSwitch, _cmdSlideOver, _cmdRowHighlight, _cmdSyntax, _cmdCheckUpdates;
         private static Settings _settings;
         private static string _configDir;
         private static PanelForm _panel;
@@ -56,6 +56,8 @@ namespace TroiaLens
         private static bool? _marksDark;
         // Span currently drawn ("from:to:word"); moving within one method only moves the row mark
         private static string _markedSpan;
+        // Trace lines of the selected row (0 = none), kept so the row tint can be switched on again
+        private static int _rowLine, _rowLineEnd;
         // Editor lines of that span and of the part of it carrying marks: a long span is marked only around the
         // view, and the marks move along as the view scrolls (a whole 800K-line method would take seconds)
         private static long _spanFirst = -1, _spanLast = -1, _drawnFirst = -1, _drawnLast = -1;
@@ -82,6 +84,7 @@ namespace TroiaLens
             _cmdAutoOpen = Funcs.Add("Trace dosyalarında paneli otomatik aç", () => Safe(ToggleAutoOpen), _settings.AutoOpen);
             _cmdTabSwitch = Funcs.Add("Sekme değişince yeniden analiz et", () => Safe(ToggleTabSwitch), _settings.AnalyzeOnTabSwitch);
             _cmdSlideOver = Funcs.Add("Satır ayrıntısını sağda kayan panelde aç", () => Safe(ToggleSlideOver), _settings.DetailSlideOver);
+            _cmdRowHighlight = Funcs.Add("Seçili satırın kod bloğunu renklendir", () => Safe(ToggleRowHighlight), _settings.RowHighlight);
             _cmdSyntax = Funcs.Add("Sözdizimi renkleri", () => Safe(ToggleSyntax), _settings.SyntaxColors);
             Funcs.Add("", null);
             // F12 may not reach the panel: Notepad++ has its own use for it
@@ -206,6 +209,21 @@ namespace TroiaLens
             _panel?.SetDetailSlideOver(on);
         }
 
+        private static void ToggleRowHighlight() => SetRowHighlight(!_settings.RowHighlight);
+
+        /// <summary>
+        /// From the menu or the call tree's switch: saves the choice, ticks the menu item, tells the page and
+        /// adds or removes the selected row's tint at once.
+        /// </summary>
+        internal static void SetRowHighlight(bool on)
+        {
+            _settings.RowHighlight = on;
+            SetCheck(_cmdRowHighlight, on);
+            _settings.Save();
+            _panel?.SetRowHighlight(on);
+            if (_markSpan >= 0 && _lineStarts != null && CurrentBufferId() == _docBuffer) DrawRow(CurrentScintilla());
+        }
+
         private static void OpenDevTools()
         {
             if (!_panelVisible) ShowPanel();
@@ -229,7 +247,7 @@ namespace TroiaLens
             if (_panel == null)
             {
                 string userData = Path.Combine(_configDir, Name, "WebView2");
-                _panel = new PanelForm(Path.Combine(PluginDir, "web"), PluginDir, userData, IsDarkMode(), _settings.DevTools, _settings.DetailSlideOver);
+                _panel = new PanelForm(Path.Combine(PluginDir, "web"), PluginDir, userData, IsDarkMode(), _settings.DevTools, _settings.DetailSlideOver, _settings.RowHighlight);
                 RegisterDock(_panel);
                 _panel.Start();
             }
@@ -265,19 +283,27 @@ namespace TroiaLens
 
         /// <summary>
         /// Writes a dump exported by the page to %TEMP%\TroiaLens (UTF-8 with BOM, so Excel reads Turkish letters)
-        /// and opens it with its default program (Excel). Files sit beside the trace copy folders; CleanCsv removes
+        /// and opens it with its default program (Excel). Files sit beside the trace copy folders; CleanExports removes
         /// them after a day.
         /// </summary>
-        public static void SaveCsv(string name, string text) => Safe(() =>
+        public static void SaveCsv(string name, string text) =>
+            SaveExport(name, "dump.csv", file => File.WriteAllText(file, text, new UTF8Encoding(true)));
+
+        /// <summary>The same for an Excel workbook the page built; data is the file in base64.</summary>
+        public static void SaveXlsx(string name, string data) =>
+            SaveExport(name, "dump.xlsx", file => File.WriteAllBytes(file, Convert.FromBase64String(data)));
+
+        /// <summary>Calls write with a free path under %TEMP%\TroiaLens, then opens the file.</summary>
+        private static void SaveExport(string name, string fallback, Action<string> write) => Safe(() =>
         {
             Directory.CreateDirectory(TempRoot);
-            CleanCsv();
+            CleanExports();
             foreach (char c in Path.GetInvalidFileNameChars()) name = name?.Replace(c, '_');
-            if (string.IsNullOrWhiteSpace(name)) name = "dump.csv";
+            if (string.IsNullOrWhiteSpace(name)) name = fallback;
             string stem = Path.GetFileNameWithoutExtension(name), ext = Path.GetExtension(name);
             string file = Path.Combine(TempRoot, name);
             for (int n = 2; File.Exists(file); n++) file = Path.Combine(TempRoot, $"{stem} ({n}){ext}");
-            File.WriteAllText(file, text, new UTF8Encoding(true));
+            write(file);
             Process.Start(file);
         });
 
@@ -469,7 +495,7 @@ namespace TroiaLens
                         // In use; next time
                     }
                 }
-                CleanCsv();
+                CleanExports();
             }
             catch (Exception)
             {
@@ -477,12 +503,13 @@ namespace TroiaLens
             }
         }
 
-        /// <summary>Removes exported CSV files older than a day; Notepad++ may stay open for days, so SaveCsv calls it too.</summary>
-        private static void CleanCsv()
+        /// <summary>Removes exported CSV and Excel files older than a day; Notepad++ may stay open for days, so SaveExport calls it too.</summary>
+        private static void CleanExports()
         {
             try
             {
-                foreach (string file in Directory.GetFiles(TempRoot, "*.csv"))
+                foreach (string pattern in new[] { "*.csv", "*.xlsx" })
+                foreach (string file in Directory.GetFiles(TempRoot, pattern))
                 {
                     try
                     {
@@ -664,13 +691,19 @@ namespace TroiaLens
                 }
                 DrawSpan(sci);
 
-                Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
-                if (line > 0)
-                {
-                    long first = DocLine(sci, line), last = DocLineEnd(sci, Math.Max(line, lineEnd));
-                    for (long l = first; l <= last && l - first < 1000; l++) Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markRow);
-                }
+                _rowLine = line;
+                _rowLineEnd = lineEnd;
+                DrawRow(sci);
             });
+        }
+
+        /// <summary>Tints the selected row's lines, unless the setting is off.</summary>
+        private static void DrawRow(IntPtr sci)
+        {
+            Sci(sci, SciMsg.SCI_MARKERDELETEALL, (IntPtr)_markRow);
+            if (_rowLine <= 0 || !_settings.RowHighlight) return;
+            long first = DocLine(sci, _rowLine), last = DocLineEnd(sci, Math.Max(_rowLine, _rowLineEnd));
+            for (long l = first; l <= last && l - first < 1000; l++) Sci(sci, SciMsg.SCI_MARKERADD, (IntPtr)l, (IntPtr)_markRow);
         }
 
         /// <summary>Removes the row marks (and with pick the double-clicked word's marks) from the analysed document, if it is the active one.</summary>
@@ -692,6 +725,7 @@ namespace TroiaLens
             Sci(sci, SciMsg.SCI_SETINDICATORCURRENT, (IntPtr)_indWord);
             Sci(sci, SciMsg.SCI_INDICATORCLEARRANGE, IntPtr.Zero, Sci(sci, SciMsg.SCI_GETLENGTH));
             _markedSpan = null;
+            _rowLine = _rowLineEnd = 0;
             _spanFirst = _spanLast = _drawnFirst = _drawnLast = -1;
             _spanWord = null;
         }

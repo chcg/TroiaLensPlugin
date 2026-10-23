@@ -27,6 +27,9 @@ namespace TroiaLens
         /// <summary>Statement detail slides over from the right instead of docking under the views.</summary>
         public bool DetailSlideOver { get; set; }
 
+        /// <summary>Tint the lines of the row selected in the panel (light yellow) in the editor.</summary>
+        public bool RowHighlight { get; set; } = true;
+
         /// <summary>Colour the text of trace documents in the editor.</summary>
         public bool SyntaxColors { get; set; } = true;
 
@@ -49,6 +52,7 @@ namespace TroiaLens
             AnalyzeOnTabSwitch = Read("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch);
             DevTools = Read("DevTools", DevTools);
             DetailSlideOver = Read("DetailSlideOver", DetailSlideOver);
+            RowHighlight = Read("RowHighlight", RowHighlight);
             SyntaxColors = Read("SyntaxColors", SyntaxColors);
             CheckUpdates = Read("CheckUpdates", CheckUpdates);
             SkippedVersion = Read("SkippedVersion", SkippedVersion).Trim();
@@ -59,9 +63,13 @@ namespace TroiaLens
             Extensions = ext.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(e => e.StartsWith(".") ? e : "." + e)
                 .ToArray();
-            // First run: the file shows what can be set. A file from before 0.1.4 gets the update switch, on
+            // First run: the file shows what can be set. An older file gets the newer switches, on
             if (!File.Exists(_file)) Save();
-            else WriteIfMissing("CheckUpdates", CheckUpdates ? "1" : "0");
+            else
+            {
+                WriteIfMissing("CheckUpdates", CheckUpdates ? "1" : "0");
+                WriteIfMissing("RowHighlight", RowHighlight ? "1" : "0");
+            }
         }
 
         public void Save()
@@ -72,6 +80,7 @@ namespace TroiaLens
                 Write("AutoOpen", AutoOpen ? "1" : "0");
                 Write("AnalyzeOnTabSwitch", AnalyzeOnTabSwitch ? "1" : "0");
                 Write("DetailSlideOver", DetailSlideOver ? "1" : "0");
+                Write("RowHighlight", RowHighlight ? "1" : "0");
                 Write("SyntaxColors", SyntaxColors ? "1" : "0");
                 Write("CheckUpdates", CheckUpdates ? "1" : "0");
                 Write("SkippedVersion", SkippedVersion);

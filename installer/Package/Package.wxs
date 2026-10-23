@@ -28,6 +28,8 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/ufukt51/TroiaLensPlugin" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPNOREPAIR" Value="1" />
+    <!-- A few plugin files need no system restore point; creating one can take minutes -->
+    <Property Id="MSIFASTINSTALL" Value="1" />
 
     <!-- Notepad++ folder lookup; NPPDIR may come from the command line or the setup bundle -->
     <Property Id="NPPDIR" Secure="yes" />

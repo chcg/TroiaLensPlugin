@@ -214,9 +214,8 @@ namespace TroiaLens
 
         private static void About()
         {
-            var v = typeof(Plugin).Assembly.GetName().Version;
             MessageBox.Show(
-                $"TroiaLens {v.Major}.{v.Minor}.{v.Build}\n\n" +
+                $"TroiaLens {Display(InstalledVersion)}\n\n" +
                 "Canias ERP Troia trace dosyalarını analiz eder.\n" +
                 $"Uzantılar: {string.Join(", ", _settings.Extensions)}\n\n" +
                 $"Ayarlar: {Path.Combine(_configDir, "TroiaLens.ini")}",

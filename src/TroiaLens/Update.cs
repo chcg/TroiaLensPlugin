@@ -34,14 +34,13 @@ namespace TroiaLens
             public string Tag, Page, SetupUrl, SetupName, Sha256;
         }
 
-        private static Version InstalledVersion
-        {
-            get
-            {
-                var v = typeof(Plugin).Assembly.GetName().Version;
-                return new Version(v.Major, v.Minor, Math.Max(v.Build, 0));
-            }
-        }
+        private static Version InstalledVersion => Complete(typeof(Plugin).Assembly.GetName().Version);
+
+        /// <summary>All four parts, missing ones as 0, so 0.1.4 equals 0.1.4.0 and 0.1.4.1 is newer than both.</summary>
+        private static Version Complete(Version v) => new Version(v.Major, v.Minor, Math.Max(v.Build, 0), Math.Max(v.Revision, 0));
+
+        /// <summary>0.1.4 for 0.1.4.0, 0.1.4.1 as it is.</summary>
+        private static string Display(Version v) => v.Revision > 0 ? v.ToString(4) : v.ToString(3);
 
         /// <summary>At NPPN_READY: looks for a new release in the background when the last look is a day old.</summary>
         private static void AutoCheckUpdate()
@@ -88,13 +87,13 @@ namespace TroiaLens
 
         private static void OfferUpdate(Release release, bool manual)
         {
-            string installed = InstalledVersion.ToString(3);
+            string installed = Display(InstalledVersion);
             if (release == null || release.Version <= InstalledVersion)
             {
                 if (manual) MessageBox.Show($"En son sürüm kurulu: {installed}", Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            string latest = release.Version.ToString(3);
+            string latest = Display(release.Version);
             if (!manual && _settings.SkippedVersion == latest) return;
             if (release.SetupUrl == null)
             {
@@ -173,7 +172,7 @@ namespace TroiaLens
             if (!Version.TryParse(tag.TrimStart('v', 'V').Split('-', '+')[0], out var version)) return null;
             var release = new Release
             {
-                Version = new Version(version.Major, version.Minor, Math.Max(version.Build, 0)),
+                Version = Complete(version),
                 Tag = tag,
                 Page = json["html_url"] as string,
             };
@@ -221,7 +220,7 @@ namespace TroiaLens
             // .NET Framework 4.8 may still default to TLS 1.0 on older Windows; GitHub needs 1.2
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             var client = new WebClient { Encoding = Encoding.UTF8 };
-            client.Headers[HttpRequestHeader.UserAgent] = Name + "/" + InstalledVersion.ToString(3);
+            client.Headers[HttpRequestHeader.UserAgent] = Name + "/" + Display(InstalledVersion);
             client.Headers[HttpRequestHeader.Accept] = "application/vnd.github+json";
             // Company proxies usually sign in with the Windows account
             if (client.Proxy != null) client.Proxy.Credentials = CredentialCache.DefaultCredentials;
